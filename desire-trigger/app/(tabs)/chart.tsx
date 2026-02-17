@@ -1,72 +1,129 @@
-import { View, Text, Dimensions, ScrollView, TouchableOpacity } from 'react-native';
-import RadarChart from '../../components/ui/RadarChart';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useMockStore } from '../../store/mockStore';
 import { useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
+import RadarChartSection from '../../components/analysis/RadarChartSection';
+import TrendSection from '../../components/analysis/TrendSection';
+import MetricDetailModal from '../../components/analysis/MetricDetailModal';
+import { MetricKey } from '../../components/analysis/MetricDetailCard';
+import InsightCard from '../../components/analysis/InsightCard';
 
 export default function ChartScreen() {
-    const { scores } = useMockStore();
     const router = useRouter();
-    const screenWidth = Dimensions.get('window').width;
+    const [selectedMetric, setSelectedMetric] = useState<MetricKey>('immersion');
+    const [isModalVisible, setIsModalVisible] = useState(false);
 
-    const data = {
-        labels: ["回復", "承認", "安心", "挑戦", "刺激", "孤独解消", "創造"],
-        datasets: [
-            {
-                data: [
-                    scores.recovery,
-                    scores.recognition,
-                    scores.security,
-                    scores.challenge,
-                    scores.stimulation,
-                    scores.connection,
-                    scores.creation
-                ]
-            }
-        ]
-    };
-
-    const chartConfig = {
-        backgroundGradientFrom: "#fff",
-        backgroundGradientTo: "#fff",
-        color: (opacity = 1) => `rgba(167, 139, 250, ${opacity})`, // calm-500
-        labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`, // gray-500
-        strokeWidth: 2,
-        barPercentage: 0.5,
+    const handleMetricSelect = (key: MetricKey) => {
+        setSelectedMetric(key);
+        setIsModalVisible(true);
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-white">
-            <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
-                <Text className="text-2xl font-bold text-gray-800 mb-2">今のあなたの欲求</Text>
-                <Text className="text-gray-500 mb-8">回答に基づいて分析しました</Text>
-
-                <View className="items-center -ml-6 mb-8">
-                    <RadarChart
-                        data={data}
-                        width={screenWidth - 48}
-                        height={300}
-                    />
-                </View>
-
-                <View className="bg-purple-50 p-6 rounded-2xl mb-8 border border-purple-100">
-                    <Text className="text-calm-500 font-bold text-lg mb-2">今、あなたが最も求めているもの</Text>
-                    <View className="flex-row items-baseline mb-2">
-                        <Text className="text-4xl font-bold text-gray-800 mr-2">回復</Text>
-                        <Text className="text-xl text-calm-500 font-bold">(75点)</Text>
+        <SafeAreaView style={styles.container}>
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+                {/* Header Area */}
+                <View style={styles.headerContainer}>
+                    <View>
+                        <Text style={styles.headerLabel}>ANALYSIS</Text>
+                        <Text style={styles.headerTitle}>状態分析レポート</Text>
                     </View>
-                    <Text className="text-gray-600 leading-relaxed">
-                        疲れが溜まっています。リラックスする時間を作りましょう。
-                    </Text>
+                    <TouchableOpacity style={styles.shareButton}>
+                        <Feather name="share-2" size={20} color="#9ca3af" />
+                    </TouchableOpacity>
                 </View>
 
+                {/* Radar Chart Section */}
+                <View style={styles.sectionContainer}>
+                    <RadarChartSection onMetricSelect={handleMetricSelect} selectedMetric={selectedMetric} />
+                </View>
+
+                {/* Trend Section */}
+                <View style={styles.sectionContainer}>
+                    <TrendSection />
+                </View>
+
+                {/* Insight Card (Component) */}
+                <View style={styles.sectionContainer}>
+                    <InsightCard />
+                </View>
+
+                {/* Action Button */}
                 <TouchableOpacity
-                    className="bg-gray-800 w-full py-4 rounded-xl items-center shadow-md active:opacity-80"
+                    style={styles.actionButton}
                     onPress={() => router.push('/(tabs)/actions')}
                 >
-                    <Text className="text-white text-lg font-bold">今日のおすすめ行動を見る</Text>
+                    <Text style={styles.actionButtonText}>おすすめアクションを実行</Text>
                 </TouchableOpacity>
+
             </ScrollView>
+
+            {/* Metric Detail Modal */}
+            <MetricDetailModal
+                visible={isModalVisible}
+                onClose={() => setIsModalVisible(false)}
+                metricKey={selectedMetric}
+            />
         </SafeAreaView>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#0f172a', // Slate-900 (Matching Trend/Radar background base)
+    },
+    scrollContent: {
+        padding: 24,
+        paddingBottom: 100,
+    },
+    headerContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    headerLabel: {
+        color: '#94a3b8',
+        fontSize: 12,
+        fontWeight: 'bold',
+        marginBottom: 4,
+        letterSpacing: 1.5,
+    },
+    headerTitle: {
+        color: '#f8fafc',
+        fontSize: 24,
+        fontWeight: 'bold',
+    },
+    shareButton: {
+        backgroundColor: '#1e293b',
+        padding: 12,
+        borderRadius: 9999,
+    },
+    sectionContainer: {
+        alignItems: 'center',
+        marginBottom: 10,
+        width: '100%',
+    },
+
+    actionButton: {
+        backgroundColor: '#3B82F6',
+        width: '100%',
+        paddingVertical: 16,
+        borderRadius: 16,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        marginBottom: 24,
+    },
+    actionButtonText: {
+        color: 'white',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+});
+
+
+
