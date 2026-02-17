@@ -17,6 +17,9 @@ interface MetricDetail {
     icon: keyof typeof Feather.glyphMap;
 }
 
+// Order of metrics for swiping/display
+export const METRIC_ORDER: MetricKey[] = ['exploration', 'immersion', 'refactor', 'contribution', 'idle'];
+
 // Detailed Data Configuration
 export const detailedMetrics: Record<MetricKey, MetricDetail> = {
     exploration: {

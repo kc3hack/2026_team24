@@ -62,10 +62,9 @@ const RadarChartSection = ({ onMetricSelect, selectedMetric }: RadarChartSection
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>System Analysis</Text>
-        <Text style={styles.subtitle}>Current Status Overview</Text>
-      </View>
+
+
+
 
       {/* Chart Area */}
       <View style={styles.chartWrapper}>
@@ -169,26 +168,10 @@ const RadarChartSection = ({ onMetricSelect, selectedMetric }: RadarChartSection
 
 
         {/* Diary Correction UI (Badge) - Absolute Positioned over chart */}
-        <Animated.View style={[styles.badge, animatedChartStyle, { top: 20, right: 30 }]}>
-          <View style={styles.badgeContent}>
-            <Feather name="arrow-up" size={12} color="#10B981" />
-            <Text style={styles.badgeText}>+10%</Text>
-          </View>
-          <Text style={styles.badgeLabel}>Diary Bonus</Text>
-        </Animated.View>
+
       </View>
 
-      {/* Stats Footer */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Total Score</Text>
-          <Text style={styles.statValue}>335</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Condition</Text>
-          <Text style={[styles.statValue, { color: '#10B981' }]}>絶好調</Text>
-        </View>
-      </View>
+
     </View>
   );
 };
@@ -196,77 +179,20 @@ const RadarChartSection = ({ onMetricSelect, selectedMetric }: RadarChartSection
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#0f172a', // Slate-900
-    padding: 24,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
     borderRadius: 24,
     alignItems: 'center',
-    marginBottom: 20,
     width: '100%',
   },
-  header: {
-    width: '100%',
-    marginBottom: 20,
-  },
-  title: {
-    color: '#f8fafc', // Slate-50
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  subtitle: {
-    color: '#94a3b8', // Slate-400
-    fontSize: 12,
-  },
+
   chartWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 0,
   },
-  badge: {
-    position: 'absolute',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)', // Emerald-500 with low opacity
-    borderWidth: 1,
-    borderColor: '#10B981',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    alignItems: 'center',
-  },
-  badgeContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  badgeText: {
-    color: '#10B981',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginLeft: 2,
-  },
-  badgeLabel: {
-    color: '#6ee7b7', // Emerald-300
-    fontSize: 8,
-    marginTop: 2,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    backgroundColor: '#1e293b', // Slate-800
-    padding: 16,
-    borderRadius: 16,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statLabel: {
-    color: '#94a3b8',
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  statValue: {
-    color: '#f8fafc',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
+
+
 });
 
 export default RadarChartSection;

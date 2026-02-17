@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; // reload trigger
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+
 import { Feather } from '@expo/vector-icons';
 import RadarChartSection from '../../components/analysis/RadarChartSection';
 import TrendSection from '../../components/analysis/TrendSection';
@@ -9,8 +9,9 @@ import MetricDetailModal from '../../components/analysis/MetricDetailModal';
 import { MetricKey } from '../../components/analysis/MetricDetailCard';
 import InsightCard from '../../components/analysis/InsightCard';
 
+
 export default function ChartScreen() {
-    const router = useRouter();
+
     const [selectedMetric, setSelectedMetric] = useState<MetricKey>('immersion');
     const [isModalVisible, setIsModalVisible] = useState(false);
 
@@ -38,23 +39,18 @@ export default function ChartScreen() {
                     <RadarChartSection onMetricSelect={handleMetricSelect} selectedMetric={selectedMetric} />
                 </View>
 
-                {/* Trend Section */}
-                <View style={styles.sectionContainer}>
-                    <TrendSection />
-                </View>
-
                 {/* Insight Card (Component) */}
                 <View style={styles.sectionContainer}>
                     <InsightCard />
                 </View>
 
+                {/* Trend Section */}
+                <View style={styles.sectionContainer}>
+                    <TrendSection />
+                </View>
+
                 {/* Action Button */}
-                <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => router.push('/(tabs)/actions')}
-                >
-                    <Text style={styles.actionButtonText}>おすすめアクションを実行</Text>
-                </TouchableOpacity>
+
 
             </ScrollView>
 
@@ -63,6 +59,7 @@ export default function ChartScreen() {
                 visible={isModalVisible}
                 onClose={() => setIsModalVisible(false)}
                 metricKey={selectedMetric}
+                onMetricChange={setSelectedMetric}
             />
         </SafeAreaView>
     );
@@ -106,23 +103,9 @@ const styles = StyleSheet.create({
         width: '100%',
     },
 
-    actionButton: {
-        backgroundColor: '#3B82F6',
-        width: '100%',
-        paddingVertical: 16,
-        borderRadius: 16,
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        marginBottom: 24,
-    },
-    actionButtonText: {
-        color: 'white',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
+
+
+
 });
 
 
