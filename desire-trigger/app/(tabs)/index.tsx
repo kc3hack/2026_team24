@@ -6,6 +6,14 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const MODE_COLORS: { [key: string]: string } = {
+  Explore: '#3B82F6',    // 🟦 青
+  Immerse: '#22C55E',    // 🟢 緑
+  Organize: '#A855F7',   // 🟣 紫
+  Contribute: '#F97316', // 🧡 オレンジ
+  Rest: '#06B6D4',       // 🩵 シアン
+};
+
 // 🦾 メカ・ハッカー風タスクカード
 const HackerTaskCard = ({ title, tag, time, color }: { title: string, tag: string, time: string, color: string }) => {
   const [isCompleted, setIsCompleted] = useState(false);
@@ -49,8 +57,20 @@ const HackerTaskCard = ({ title, tag, time, color }: { title: string, tag: strin
 
 // 🏠 ホーム画面本体
 export default function HomeScreen() {
+
   const router = useRouter();
   const [userName, setUserName] = useState<string>("...");
+  // 1. スタイル計算用のロジック
+  const percentage = 85; // ここを動的に変更
+  const size = 200;
+  const strokeWidth = 12;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+
+  // ％に応じて「色のつく範囲（オフセット）」を計算
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  
 
   // 🛡️ 画面表示のたびにデータをロード
   useFocusEffect(
@@ -93,6 +113,29 @@ export default function HomeScreen() {
             <Feather name="settings" size={20} color="#9ca3af" />
           </TouchableOpacity>
         </View>
+
+            {/* 🕹️ ここから追加：横並びのボタン */}
+        <View className="flex-row gap-x-3 mt-6">
+        {/* 毎日の質問ボタン */}
+        <Pressable 
+          onPress={() => router.push('/question')}
+          style={{ borderColor: '#3B82F6' + '40' }}
+          className="flex-1 flex-row items-center justify-center py-4 bg-gray-900 border rounded-2xl"
+        >
+          <Feather name="help-circle" size={18} color="#3B82F6" />
+          <Text className="text-white font-bold ml-2 text-xs">Daily Quest</Text>
+        </Pressable>
+
+        {/* 日記を書くボタン */}
+        <Pressable 
+          //onPress={() => router.push('/diary')}
+          style={{ borderColor: '#10b981' + '40' }}
+          className="flex-1 flex-row items-center justify-center py-4 bg-gray-900 border rounded-2xl"
+        >
+          <Feather name="edit-3" size={16} color="#10b981" />
+          <Text className="text-white font-bold ml-2 text-xs">Write Log</Text>
+        </Pressable>
+              </View>
 
         {/* メインビジュアル：円形進捗 */}
         <View className="items-center justify-center my-6">
