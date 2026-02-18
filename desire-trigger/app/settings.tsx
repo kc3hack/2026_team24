@@ -59,9 +59,9 @@ export default function SettingsScreen() {
     const handleAction = (action: string) => {
         switch (action) {
             case 'logout':
-                Alert.alert('SYSTEM', 'ログアウトしますか？', [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Logout', style: 'destructive', onPress: () => router.replace('/') }
+                Alert.alert('SYSTEM', 'タイトルへ戻りますか？', [
+                    { text: 'No', style: 'cancel' },
+                    { text: 'Yes', style: 'destructive', onPress: () => router.replace('/') }
                 ]);
                 break;
             case 'cache':
@@ -126,8 +126,8 @@ export default function SettingsScreen() {
             title: "システム",
             items: [
                 { id: 'notif', label: '通知デリバリー', value: notifications, type: 'switch' },
-
                 { id: 'version', label: 'バージョン', value: 'v1.0.0', type: 'text', disabled: true },
+                { id: 'logout', label: 'タイトルへ戻る', type: 'button', danger: true, action: 'logout' },
             ]
         }
     ];
