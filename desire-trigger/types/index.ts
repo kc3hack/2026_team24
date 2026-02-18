@@ -124,6 +124,12 @@ export type Task = {
     status: TaskStatus
     completed_at: ISODateString | null
     created_at: ISODateString
+
+    // Requested Extensions for Action Screen
+    levelType?: TaskType // Alias for type
+    buffValue?: number   // Alias for buff_delta
+    expiresAt?: ISODateString // Alias for task_expires_at
+    isCompleted?: boolean // Helper for UI state
 }
 
 // ─── 質問 ───────────────────────────────────────────
