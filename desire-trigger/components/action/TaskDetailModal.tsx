@@ -106,9 +106,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ visible, task,
     };
 
     // Dynamic border color based on task type
-    const accentColor =
-        task.levelType === 'core' ? Colors.secondary :
-            task.levelType === 'deep' ? Colors.warning : Colors.primary;
+    const accentColor = (() => {
+        switch (task.levelType) {
+            case 'quick': return '#00F0FF';
+            case 'core': return '#FF0055';
+            case 'deep': return '#FFD700';
+            default: return '#00F0FF';
+        }
+    })();
 
     return (
         <Modal
@@ -138,28 +143,27 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ visible, task,
 
                     {/* Header */}
                     <View style={styles.header}>
-                        <View style={[styles.tag, { backgroundColor: accentColor + '30' }]}>
+                        <View style={[styles.tag, { backgroundColor: accentColor + '30', borderColor: accentColor }]}>
                             <Text style={[styles.tagText, { color: accentColor }]}>
                                 {task.levelType?.toUpperCase()} :: {task.category}
                             </Text>
                         </View>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                            <Ionicons name="close-circle-outline" size={32} color={Colors.text} />
+                            <Ionicons name="close-circle-outline" size={32} color={accentColor} />
                         </TouchableOpacity>
                     </View>
 
                     {/* Title */}
-                    <Text style={styles.title}>{task.title}</Text>
+                    <Text style={[styles.title, { color: accentColor }]}>{task.title}</Text>
 
                     {/* AI Description Box */}
-                    <View style={styles.aiBox}>
+                    <View style={[styles.aiBox, { borderLeftColor: accentColor }]}>
                         <View style={styles.aiHeader}>
                             <Ionicons name="hardware-chip-outline" size={16} color={accentColor} />
                             <Text style={[styles.aiLabel, { color: accentColor }]}>AI ANALYSIS</Text>
                         </View>
-                        <Text style={styles.description}>
+                        <Text style={[styles.description, { color: 'rgba(255,255,255,0.9)' }]}>
                             {task.description}
-
                         </Text>
                     </View>
 
@@ -202,7 +206,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ visible, task,
                             </Pressable>
                         </Animated.View>
 
-                        {!isAlreadyCompleted && <Text style={styles.hintText}>LONG PRESS TO EXECUTE</Text>}
+                        {!isAlreadyCompleted && <Text style={[styles.hintText, { color: accentColor }]}>LONG PRESS TO EXECUTE</Text>}
                     </View>
                 </View>
             </View>
@@ -252,6 +256,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 2,
+        borderWidth: 1,
     },
     tagText: {
         fontSize: 10,
@@ -262,19 +267,21 @@ const styles = StyleSheet.create({
     closeButton: {
         marginTop: -4,
         marginRight: -4,
+        padding: 4,
     },
     title: {
-        color: Colors.text,
-        fontSize: 26,
+        fontSize: 32, // Larger title
         fontWeight: '900',
-        lineHeight: 34,
+        lineHeight: 40,
         marginBottom: 24,
-        letterSpacing: 0.5,
+        letterSpacing: 1,
+        textShadowColor: 'rgba(0,0,0,0.8)',
+        textShadowOffset: { width: 2, height: 2 },
+        textShadowRadius: 4,
     },
     aiBox: {
         backgroundColor: 'rgba(0, 0, 0, 0.3)',
         borderLeftWidth: 2,
-        borderLeftColor: Colors.textDim,
         padding: 16,
         marginBottom: 32,
     },
@@ -285,14 +292,14 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     aiLabel: {
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: 'bold',
-        letterSpacing: 1,
+        letterSpacing: 2,
     },
     description: {
-        color: Colors.textDim,
-        fontSize: 14,
-        lineHeight: 22,
+        fontSize: 16,
+        lineHeight: 24,
+        fontWeight: '500',
     },
     footer: {
         marginTop: 'auto',
@@ -301,7 +308,7 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     commitButton: {
-        height: 56, // Enforced height
+        height: 60, // Enforced height
         backgroundColor: 'rgba(0, 0, 0, 0.6)',
         borderWidth: 2,
         borderRadius: 2,
@@ -316,16 +323,15 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     commitText: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: 'bold',
         letterSpacing: 2,
         zIndex: 1, // Ensure text is above progress bar
     },
     hintText: {
-        color: Colors.textDim,
         fontSize: 10,
         letterSpacing: 2,
-        opacity: 0.6,
+        opacity: 0.8,
         marginTop: 12,
         textAlign: 'center',
     },

@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { View, Animated, StyleSheet } from 'react-native';
 import { Task } from '../../types';
 import { TaskCard } from './TaskCard';
-import { CARD_WIDTH, ITEM_HEIGHT, SPACER_HEIGHT, VISUAL_OFFSET } from '../../constants/Layout';
+import { ITEM_HEIGHT, SPACER_HEIGHT, SCREEN_WIDTH } from '../../constants/Layout';
 
 interface TaskCarouselProps {
     tasks: Task[];
@@ -12,24 +12,17 @@ interface TaskCarouselProps {
 export const TaskCarousel: React.FC<TaskCarouselProps> = ({ tasks, onTaskPress }) => {
     const scrollY = useRef(new Animated.Value(0)).current;
 
-    // Add spacers to top and bottom to center the items vertically
-    const data = [{ id: 'top-spacer' } as any, ...tasks, { id: 'bottom-spacer' } as any];
-
-    const renderItem = ({ item, index }: { item: Task | any, index: number }) => {
-        if (!item.title) {
-            return <View style={{ height: SPACER_HEIGHT }} />;
-        }
-
+    const renderItem = ({ item, index }: { item: Task, index: number }) => {
         const inputRange = [
-            (index - 2) * ITEM_HEIGHT,
             (index - 1) * ITEM_HEIGHT,
             index * ITEM_HEIGHT,
+            (index + 1) * ITEM_HEIGHT,
         ];
 
-        // Scale: Center 1.0, Ends 0.8
+        // Scale: Center 1.0, Ends 0.85
         const scale = scrollY.interpolate({
             inputRange,
-            outputRange: [0.8, 1, 0.8],
+            outputRange: [0.85, 1, 0.85],
             extrapolate: 'clamp',
         });
 
@@ -40,37 +33,42 @@ export const TaskCarousel: React.FC<TaskCarouselProps> = ({ tasks, onTaskPress }
             extrapolate: 'clamp',
         });
 
-        // RotateX: Tilt vertically
-        // Top item (prev) -> Tilt backwards (positive) or forwards?
-        // Let's try standard rolodex: Top tilts away (-30deg), Bottom tilts towards (30deg)
-        const rotateX = scrollY.interpolate({
+        // RotateZ: Fan effect (Tilt left/right)
+        const rotateZ = scrollY.interpolate({
             inputRange,
-            outputRange: ['30deg', '0deg', '-30deg'],
+            outputRange: ['-15deg', '0deg', '15deg'],
             extrapolate: 'clamp',
         });
 
-        // TranslateY: Create vertical overlap
-        // Pull items towards the center
+        // TranslateX: Slide out slightly to emphasize fan
+        const translateX = scrollY.interpolate({
+            inputRange,
+            outputRange: [-40, 0, 40],
+            extrapolate: 'clamp',
+        });
+
+        // TranslateY: Slight vertical stacking
         const translateY = scrollY.interpolate({
             inputRange,
-            outputRange: [-VISUAL_OFFSET, 0, VISUAL_OFFSET],
+            outputRange: [-20, 0, 20],
             extrapolate: 'clamp',
         });
 
         return (
-            <View style={{ height: ITEM_HEIGHT, alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+            <View style={{ height: ITEM_HEIGHT, alignItems: 'center', justifyContent: 'center', width: SCREEN_WIDTH }}>
                 <Animated.View
                     style={{
-                        height: ITEM_HEIGHT,
-                        width: CARD_WIDTH, // Keep consistent width
+                        width: '100%',
+                        alignItems: 'center',
                         transform: [
                             { perspective: 1000 },
-                            { rotateX },
                             { translateY },
+                            { translateX },
+                            { rotateZ },
                             { scale }
                         ],
                         opacity,
-                        zIndex: 0,
+                        zIndex: 1, // Visual interaction handled by transform order
                     }}
                 >
                     <TaskCard
@@ -85,12 +83,17 @@ export const TaskCarousel: React.FC<TaskCarouselProps> = ({ tasks, onTaskPress }
     return (
         <View style={styles.container}>
             <Animated.FlatList
-                data={data}
+                data={tasks}
                 keyExtractor={(item) => item.id}
                 showsVerticalScrollIndicator={false}
                 snapToInterval={ITEM_HEIGHT}
                 decelerationRate="fast"
-                contentContainerStyle={styles.contentContainer}
+                // Add vertical padding evenly to center first and last items
+                contentContainerStyle={{
+                    paddingTop: SPACER_HEIGHT,
+                    paddingBottom: SPACER_HEIGHT,
+                    alignItems: 'center',
+                }}
                 scrollEventThrottle={16}
                 onScroll={Animated.event(
                     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -105,9 +108,6 @@ export const TaskCarousel: React.FC<TaskCarouselProps> = ({ tasks, onTaskPress }
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        justifyContent: 'center',
-    },
-    contentContainer: {
-        alignItems: 'center',
+        // Container handles layout
     },
 });
