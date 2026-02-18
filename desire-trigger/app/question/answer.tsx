@@ -4,11 +4,11 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useMockStore } from '../../store/mockStore';
 import { Feather } from '@expo/vector-icons';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withSpring, 
-  interpolate, 
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  interpolate,
   runOnJS,
   interpolateColor,
   withTiming,
@@ -22,18 +22,18 @@ import Animated, {
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const { width, height } = Dimensions.get('window');
-const SWIPE_THRESHOLD = width * 0.2; 
+const SWIPE_THRESHOLD = width * 0.2;
 
-const COLOR_YES = '#00FF2A'; 
-const COLOR_NO = '#FF004C';  
+const COLOR_YES = '#00FF2A';
+const COLOR_NO = '#FF004C';
 const STAR_COLOR = '#A5F3FC';
 
 // ✨ 背景：青い光（星）
 const Star = ({ warpFactor }: { warpFactor: SharedValue<number> }) => {
   const travel = useSharedValue(0);
-  const angle = useMemo(() => Math.random() * Math.PI * 2, []); 
-  const delay = useMemo(() => Math.random() * 2000, []); 
-  const baseDuration = useMemo(() => 1200 + Math.random() * 100, []); 
+  const angle = useMemo(() => Math.random() * Math.PI * 2, []);
+  const delay = useMemo(() => Math.random() * 2000, []);
+  const baseDuration = useMemo(() => 1200 + Math.random() * 100, []);
 
   useEffect(() => {
     travel.value = withDelay(delay, withRepeat(withTiming(1, { duration: baseDuration, easing: Easing.linear }), -1, false));
@@ -66,13 +66,13 @@ export default function QuestionAnswerScreen() {
   // UI共有値
   const translateX = useSharedValue(0);
   const rotate = useSharedValue(0);
-  const warpFactor = useSharedValue(0); 
-  const whiteoutOpacity = useSharedValue(0); 
+  const warpFactor = useSharedValue(0);
+  const whiteoutOpacity = useSharedValue(0);
 
   // インパクト共有値
   const ringScale = useSharedValue(0.5);
   const ringOpacity = useSharedValue(0);
-  const swipeDirection = useSharedValue(0); 
+  const swipeDirection = useSharedValue(0);
   const impactIntensity = useSharedValue(0);
 
   // 🚀 スコア用
@@ -80,7 +80,7 @@ export default function QuestionAnswerScreen() {
   const scoreOpacity = useSharedValue(0);
   const scoreTranslateY = useSharedValue(0);
 
-  const stars = useMemo(() => Array.from({ length: 70 }), []); 
+  const stars = useMemo(() => Array.from({ length: 70 }), []);
 
   const triggerImpact = (velocity: number, direction: 'YES' | 'NO') => {
     const speed = Math.abs(velocity);
@@ -117,7 +117,7 @@ export default function QuestionAnswerScreen() {
       if (currentQuestionIndex === questions.length - 1) {
         warpFactor.value = withTiming(1, { duration: 800 });
         whiteoutOpacity.value = withDelay(400, withTiming(1, { duration: 500 }));
-        setTimeout(() => { router.replace('/(tabs)/chart'); }, 1000);
+        setTimeout(() => { router.replace('/question/complete'); }, 1000);
       } else { nextQuestion(); }
     }
   };

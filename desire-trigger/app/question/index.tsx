@@ -2,9 +2,11 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useMockStore } from '../../store/mockStore';
 
 export default function QuestionStartScreen() {
   const router = useRouter();
+  const { resetQuestions } = useMockStore();
 
   return (
     <SafeAreaView className="flex-1 bg-[#121212] items-center justify-center p-6">
@@ -22,10 +24,14 @@ export default function QuestionStartScreen() {
       <TouchableOpacity
         className="bg-[#3B82F6] w-full py-5 rounded-2xl items-center shadow-lg active:opacity-90 mb-6"
         // 確実に /question/answer へ飛ばす
-        onPress={() => router.push('/question/answer')}
+        onPress={() => {
+          resetQuestions();
+          router.push('/question/answer');
+        }}
       >
         <Text className="text-white text-lg font-bold tracking-widest">スキャン開始</Text>
       </TouchableOpacity>
+
 
       <TouchableOpacity onPress={() => router.back()}>
         <Text className="text-gray-600 font-bold tracking-widest text-[10px]">ABORT_SESSION</Text>

@@ -26,6 +26,11 @@ export default function SetupScreen() {
   });
 
   const nextStep = () => {
+    if (step === 1 && !formData.userName.trim()) {
+      alert("ユーザー名を入力してください");
+      return;
+    }
+
     Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
       setStep(s => s + 1);
       Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
@@ -33,9 +38,14 @@ export default function SetupScreen() {
   };
 
   const saveAndFinish = async () => {
+    if (!formData.userName.trim()) {
+      alert("ユーザー名を入力してください");
+      return;
+    }
+
     try {
       const timeStr = `${formData.notifTime.getHours()}:${formData.notifTime.getMinutes().toString().padStart(2, '0')}`;
-      const data = [
+      const data: [string, string][] = [
         ['userName', String(formData.userName)],
         ['ageGroup', String(formData.ageGroup)],
         ['lifestyle', String(formData.lifestyle)],
@@ -48,8 +58,8 @@ export default function SetupScreen() {
         ['weekendFreeTime', String(formData.weekendFreeTime)],
         ['hasLaunched', 'true']
       ];
-      await AsyncStorage.multiSet(data as [string, string][]);
-      router.replace('/question');
+      await AsyncStorage.multiSet(data);
+      router.replace('/question/answer'); // 初回のみ直接質問へ
     } catch (e) {
       console.error(e);
     }
@@ -76,7 +86,7 @@ export default function SetupScreen() {
                 <TextInput
                   className="bg-gray-900 border-2 border-gray-700 rounded-xl p-4 text-white text-lg font-bold mb-6"
                   placeholder="ユーザー名" placeholderTextColor="#4b5563"
-                  value={formData.userName} onChangeText={(t) => setFormData({...formData, userName: t})}
+                  value={formData.userName} onChangeText={(t) => setFormData({ ...formData, userName: t })}
                 />
                 <View className="flex-row flex-wrap mb-6">
                   {['10代', '20代', '30代', '40代'].map(v => <SelectChip key={v} label={v} value={v} field="ageGroup" />)}
@@ -114,7 +124,7 @@ export default function SetupScreen() {
                 {showPicker && (
                   <DateTimePicker
                     value={formData.notifTime} mode="time" display="spinner" is24Hour={true}
-                    onChange={(e, d) => { setShowPicker(Platform.OS === 'ios'); if(d) setFormData({...formData, notifTime: d}) }}
+                    onChange={(e, d) => { setShowPicker(Platform.OS === 'ios'); if (d) setFormData({ ...formData, notifTime: d }) }}
                   />
                 )}
                 <Pressable onPress={saveAndFinish} className="bg-green-600 py-5 rounded-2xl items-center">
