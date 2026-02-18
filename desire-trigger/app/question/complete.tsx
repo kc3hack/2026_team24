@@ -42,7 +42,7 @@ export default function QuestionCompleteScreen() {
 
       // 🚀 ここを修正：/(tabs) ではなく /(tabs)/chart に変更
       // あなたのディレクトリ構成に合わせて /chart か /(tabs)/chart にしてください
-      router.replace('/(tabs)/chart');
+      router.replace('/question/result-flow');
     }, 2500);
 
     return () => clearTimeout(timer);
