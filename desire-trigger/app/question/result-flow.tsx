@@ -46,7 +46,8 @@ const POLYGON_FILL = 'rgba(255, 255, 255, 0.05)';
 const CARD_WIDTH = width * 0.85;
 const CARD_HEIGHT = 110;
 const CARD_GAP = 20;
-const CARD_Y_POSITIONS = [60, 60 + CARD_HEIGHT + CARD_GAP, 60 + (CARD_HEIGHT + CARD_GAP) * 2];
+const BASE_Y = 20
+const CARD_Y_POSITIONS = [BASE_Y, BASE_Y + CARD_HEIGHT + CARD_GAP, BASE_Y + (CARD_HEIGHT + CARD_GAP) * 2];
 
 // 六角形の頂点計算
 const getVertex = (radius: number, index: number) => {
@@ -399,7 +400,7 @@ const styles = StyleSheet.create({
   buttonText: { fontWeight: '900', letterSpacing: 2, fontSize: 14, fontFamily: 'monospace', color: '#000' },
   
   selectionContainer: { width: '100%', alignItems: 'center', paddingHorizontal: 20 },
-  questionText: { color: '#FFF', fontSize: 12, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', textShadowColor: RADAR_THEME, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8, letterSpacing: 1 },
+  questionText: { color: '#FFF', fontSize: 11, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', textShadowColor: RADAR_THEME, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8, letterSpacing: 1 },
   optionsWrapper: { flexDirection: 'row', justifyContent: 'space-between', width: '100%' },
   optionButton: { flex: 1, marginHorizontal: 5, paddingVertical: 14, backgroundColor: 'rgba(0, 229, 255, 0.1)', borderColor: RADAR_THEME, borderWidth: 1, borderRadius: 12, alignItems: 'center' },
   optionText: { color: '#FFF', fontSize: 11, fontWeight: 'bold', letterSpacing: 1 },
