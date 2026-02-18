@@ -1,29 +1,34 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { View, ActivityIndicator } from 'react-native';
 
-export default function TitleScreen() {
-    const router = useRouter();
+export default function Index() {
+  const router = useRouter();
 
-    return (
-        <SafeAreaView className="flex-1 bg-white items-center justify-center">
-            <StatusBar style="dark" />
-            <View className="items-center mb-16 px-6">
-                <Text className="text-4xl font-bold text-gray-800 mb-4 text-center">
-                    Desire Trigger
-                </Text>
-                <Text className="text-lg text-gray-500 text-center">
-                    あなたも気づいていない"本当の欲求"を、{"\n"}毎日の質問で発見する
-                </Text>
-            </View>
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const hasLaunched = await AsyncStorage.getItem('hasLaunched');
+        const userName = await AsyncStorage.getItem('userName');
 
-            <TouchableOpacity
-                className="bg-calm-500 px-12 py-4 rounded-full shadow-lg active:opacity-80"
-                onPress={() => router.replace('/(tabs)')}
-            >
-                <Text className="text-white text-xl font-bold">スタート</Text>
-            </TouchableOpacity>
-        </SafeAreaView>
-    );
+        if (!hasLaunched) {
+          router.replace('/welcome');
+        } else if (!userName) {
+          router.replace('/setup');
+        } else {
+          router.replace('/(tabs)');
+        }
+      } catch (e) {
+        router.replace('/welcome');
+      }
+    };
+    checkStatus();
+  }, []);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#121212', alignItems: 'center', justifyContent: 'center' }}>
+      <ActivityIndicator size="large" color="#3B82F6" />
+    </View>
+  );
 }
