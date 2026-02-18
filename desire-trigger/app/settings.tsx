@@ -30,7 +30,6 @@ export default function SettingsScreen() {
 
     // State management
     const [themeColor, setThemeColor] = useState(Colors.primary);
-    const [appIcon, setAppIcon] = useState('DEFAULT');
 
     // User Variables
     const [job, setJob] = useState('frontend');
@@ -60,10 +59,13 @@ export default function SettingsScreen() {
     const handleAction = (action: string) => {
         switch (action) {
             case 'logout':
-                Alert.alert('システム', 'タイトルへ戻りますか？', [
-                    { text: 'いいえ', style: 'cancel' },
-                    { text: 'はい', style: 'destructive', onPress: () => router.replace('/') }
+                Alert.alert('SYSTEM', 'タイトルへ戻りますか？', [
+                    { text: 'No', style: 'cancel' },
+                    { text: 'Yes', style: 'destructive', onPress: () => router.replace('/') }
                 ]);
+                break;
+            case 'cache':
+                Alert.alert('SYSTEM', 'メモリ解放を実行しました。\n> CACHE_CLEARED');
                 break;
         }
     };
@@ -73,20 +75,6 @@ export default function SettingsScreen() {
         return options.find(opt => opt.value === value)?.label || value;
     };
 
-    // Helper to sync theme with icon
-    const handleIconSelect = (iconId: string) => {
-        setAppIcon(iconId);
-
-        // Sync Visual Theme with Icon Choice (Corrected Colors)
-        let newTheme = Colors.primary;
-        switch (iconId) {
-            case 'NEON': newTheme = Colors.cyan; break;
-            case 'CRIMSON': newTheme = Colors.danger; break;
-            case 'OBSIDIAN': newTheme = Colors.obsidian; break;
-            default: newTheme = Colors.primary; break;
-        }
-        setThemeColor(newTheme);
-    };
 
     const SETTINGS_DATA: SettingSectionType[] = [
         {
@@ -94,53 +82,52 @@ export default function SettingsScreen() {
             items: [
                 {
                     id: 'job',
-                    label: '職種',
+                    label: '現在のジョブ',
                     type: 'select',
                     value: getOptionLabel(job, [
-                        { label: '学生', value: 'student' },
-                        { label: 'エンジニア (Front)', value: 'frontend' },
-                        { label: 'エンジニア (Back)', value: 'backend' },
-                        { label: 'エンジニア (Full)', value: 'fullstack' }
+                        { label: '情報学部生', value: 'student' },
+                        { label: 'フロントエンド', value: 'frontend' },
+                        { label: 'バックエンド', value: 'backend' },
+                        { label: 'フルスタック', value: 'fullstack' }
                     ]),
                     options: [
-                        { label: '学生', value: 'student' },
-                        { label: 'エンジニア (Front)', value: 'frontend' },
-                        { label: 'エンジニア (Back)', value: 'backend' },
-                        { label: 'エンジニア (Full)', value: 'fullstack' }
+                        { label: '情報学部生', value: 'student' },
+                        { label: 'フロントエンド', value: 'frontend' },
+                        { label: 'バックエンド', value: 'backend' },
+                        { label: 'フルスタック', value: 'fullstack' }
                     ]
                 },
                 {
                     id: 'level',
-                    label: '経験レベル',
+                    label: '経験値 (Level)',
                     type: 'select',
                     value: getOptionLabel(level, [
-                        { label: '初級 (Junior)', value: 'junior' },
-                        { label: '中級 (Middle)', value: 'middle' },
-                        { label: '上級 (Senior)', value: 'senior' },
-                        { label: '専門家 (Lead)', value: 'lead' }
+                        { label: '初級', value: 'junior' },
+                        { label: '中級', value: 'middle' },
+                        { label: '上級', value: 'senior' },
+                        { label: '専門家', value: 'lead' }
                     ]),
                     options: [
-                        { label: '初級 (Junior)', value: 'junior' },
-                        { label: '中級 (Middle)', value: 'middle' },
-                        { label: '上級 (Senior)', value: 'senior' },
-                        { label: '専門家 (Lead)', value: 'lead' }
+                        { label: '初級', value: 'junior' },
+                        { label: '中級', value: 'middle' },
+                        { label: '上級', value: 'senior' },
+                        { label: '専門家', value: 'lead' }
                     ]
                 },
             ]
         },
         {
-            title: "インターフェース",
+            title: "視覚同期",
             items: [
                 { id: 'theme', label: 'テーマカラー', type: 'color_picker' },
-                { id: 'icon', label: 'アイコン換装', type: 'icon_selector' },
             ]
         },
         {
             title: "システム",
             items: [
-                { id: 'notif', label: '通知', value: notifications, type: 'switch' },
-                { id: 'version', label: 'バージョン', value: 'v2.0.0 (Lulu)', type: 'text', disabled: true },
-                { id: 'logout', label: 'タイトル画面へ', type: 'button', danger: true, action: 'logout' },
+                { id: 'notif', label: '通知デリバリー', value: notifications, type: 'switch' },
+                { id: 'version', label: 'バージョン', value: 'v1.0.0', type: 'text', disabled: true },
+                { id: 'logout', label: 'タイトルへ戻る', type: 'button', danger: true, action: 'logout' },
             ]
         }
     ];
@@ -178,13 +165,13 @@ export default function SettingsScreen() {
                                             if (item.id === 'notif') setNotifications(!notifications);
                                         } else if (item.action) {
                                             handleAction(item.action);
+                                        } else if (item.id === 'cache' && item.type === 'button') {
+                                            handleAction('cache');
                                         }
                                     }}
                                     // Props for specific types
                                     selectedColor={themeColor}
                                     onColorSelect={(color) => setThemeColor(color)}
-                                    currentIcon={appIcon}
-                                    onIconSelect={handleIconSelect}
                                 />
                             ))}
                         </View>
@@ -235,7 +222,7 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     itemsWrapper: {
-        backgroundColor: 'rgba(255, 255, 255, 0.02)',
+        backgroundColor: 'rgba(255, 255, 255, 0.02)', // Very subtle background for items group
         borderRadius: 8,
         marginHorizontal: 16,
         overflow: 'hidden',

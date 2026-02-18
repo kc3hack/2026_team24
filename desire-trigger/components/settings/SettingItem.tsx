@@ -62,7 +62,7 @@ export const SettingItem: React.FC<SettingItemProps> = ({
                     style={[styles.input, { borderColor: themeColor }]}
                     value={String(value)}
                     onChangeText={onChangeText}
-                    placeholderTextColor={Colors.textDim}
+                    placeholderTextColor={Colors.secondary}
                     selectionColor={themeColor}
                 />
             </View>
@@ -106,12 +106,12 @@ export const SettingItem: React.FC<SettingItemProps> = ({
                 {(type === 'select' || type === 'time') && (
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={styles.value}>{String(value)}</Text>
-                        <Ionicons name="chevron-forward" size={20} color={Colors.textDim} style={{ marginLeft: 8 }} />
+                        <Ionicons name="chevron-forward" size={20} color={Colors.secondary} style={{ marginLeft: 8 }} />
                     </View>
                 )}
 
                 {type === 'button' && !danger && (
-                    <Ionicons name="chevron-forward" size={20} color={Colors.textDim} />
+                    <Ionicons name="chevron-forward" size={20} color={Colors.secondary} />
                 )}
             </View>
         </TouchableOpacity>
@@ -139,12 +139,12 @@ const styles = StyleSheet.create({
         color: Colors.danger,
     },
     description: {
-        color: Colors.textDim,
+        color: Colors.secondary,
         fontSize: 12,
         marginTop: 4,
     },
     value: {
-        color: Colors.textDim,
+        color: Colors.secondary,
         fontSize: 14,
         fontFamily: 'monospace',
     },

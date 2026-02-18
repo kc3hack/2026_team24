@@ -10,23 +10,22 @@ interface SettingSectionProps {
 export const SettingSection: React.FC<SettingSectionProps> = ({ title, color }) => {
     return (
         <View style={styles.container}>
-            <Text style={[styles.title, { color: color || Colors.primary }]}>
-                {title}
-            </Text>
+            <Text style={[styles.text, color && { color }]}>{`// ${title}`}</Text>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
+        paddingVertical: 12,
         paddingHorizontal: 16,
-        paddingBottom: 8,
-        paddingTop: 24,
+        backgroundColor: 'transparent',
     },
-    title: {
-        fontSize: 12,
+    text: {
+        color: Colors.primary,
+        fontSize: 14,
+        fontFamily: 'monospace', // Assuming a monospace font is available or system default
         fontWeight: 'bold',
         letterSpacing: 1,
-        textTransform: 'uppercase',
     },
 });

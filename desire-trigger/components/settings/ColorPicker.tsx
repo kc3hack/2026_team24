@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Colors } from '../../constants/Colors';
 
 interface ColorPickerProps {
@@ -8,46 +8,68 @@ interface ColorPickerProps {
 }
 
 const THEME_COLORS = [
-    Colors.cyan,
-    Colors.magenta,
-    Colors.lime,
-    Colors.orange,
-    Colors.obsidian,
+    { id: 'CYBER_BLUE', value: '#00F0FF' },
+    { id: 'NEON_PINK', value: '#FF003C' },
+    { id: 'ACID_GREEN', value: '#39FF14' },
+    { id: 'SOLAR_YELLOW', value: '#FDF500' },
+    { id: 'PLASMA_PURPLE', value: '#8A2BE2' },
 ];
 
 export const ColorPicker: React.FC<ColorPickerProps> = ({ selectedColor, onSelect }) => {
     return (
         <View style={styles.container}>
-            {THEME_COLORS.map((color) => (
-                <TouchableOpacity
-                    key={color}
-                    style={[
-                        styles.swatch,
-                        { backgroundColor: color },
-                        selectedColor === color && styles.selected
-                    ]}
-                    onPress={() => onSelect(color)}
-                />
-            ))}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
+            >
+                {THEME_COLORS.map((color) => {
+                    const isSelected = selectedColor === color.value;
+                    return (
+                        <TouchableOpacity
+                            key={color.id}
+                            style={[
+                                styles.colorCircle,
+                                { backgroundColor: color.value },
+                                isSelected && styles.selectedCircle
+                            ]}
+                            onPress={() => onSelect(color.value)}
+                            activeOpacity={0.7}
+                        >
+                            {isSelected && <View style={styles.innerDot} />}
+                        </TouchableOpacity>
+                    );
+                })}
+            </ScrollView>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        flexDirection: 'row',
-        gap: 12,
-        marginTop: 8,
+        paddingVertical: 12,
     },
-    swatch: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+    scrollContent: {
+        paddingHorizontal: 0,
+        alignItems: 'center',
+    },
+    colorCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        marginRight: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
         borderWidth: 2,
         borderColor: 'transparent',
     },
-    selected: {
+    selectedCircle: {
         borderColor: Colors.text,
-        borderWidth: 3,
+    },
+    innerDot: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: Colors.background,
     },
 });

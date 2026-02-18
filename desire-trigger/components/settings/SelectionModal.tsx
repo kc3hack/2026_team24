@@ -1,13 +1,12 @@
 import React from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, FlatList, TouchableWithoutFeedback } from 'react-native';
 import { Colors } from '../../constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
 
-export type SettingOption = {
+export interface SettingOption {
     label: string;
     value: string;
-    description?: string;
-};
+}
 
 interface SelectionModalProps {
     visible: boolean;
@@ -16,11 +15,11 @@ interface SelectionModalProps {
     currentValue: string;
     onSelect: (value: string) => void;
     onClose: () => void;
-    themeColor: string;
+    themeColor?: string;
 }
 
 export const SelectionModal: React.FC<SelectionModalProps> = ({
-    visible, title, options, currentValue, onSelect, onClose, themeColor
+    visible, title, options, currentValue, onSelect, onClose, themeColor = Colors.primary
 }) => {
     return (
         <Modal
@@ -29,46 +28,50 @@ export const SelectionModal: React.FC<SelectionModalProps> = ({
             animationType="fade"
             onRequestClose={onClose}
         >
-            <View style={styles.overlay}>
-                <View style={[styles.modalContent, { borderColor: themeColor, shadowColor: themeColor }]}>
-                    <Text style={[styles.title, { color: themeColor }]}>{title}</Text>
+            <TouchableWithoutFeedback onPress={onClose}>
+                <View style={styles.overlay}>
+                    <TouchableWithoutFeedback>
+                        <View style={[styles.modalContent, { borderColor: themeColor }]}>
+                            <View style={[styles.header, { borderBottomColor: themeColor }]}>
+                                <Text style={[styles.headerTitle, { color: themeColor }]}>{title}</Text>
+                                <TouchableOpacity onPress={onClose}>
+                                    <Ionicons name="close" size={24} color={Colors.secondary} />
+                                </TouchableOpacity>
+                            </View>
 
-                    <ScrollView style={styles.optionList}>
-                        {options.map((option) => (
-                            <TouchableOpacity
-                                key={option.value}
-                                style={[
-                                    styles.optionItem,
-                                    currentValue === option.value && { backgroundColor: themeColor + '20' }
-                                ]}
-                                onPress={() => {
-                                    onSelect(option.value);
-                                    onClose();
+                            <FlatList
+                                data={options}
+                                keyExtractor={(item) => item.value}
+                                renderItem={({ item }) => {
+                                    const isSelected = item.value === currentValue;
+                                    return (
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.optionItem,
+                                                isSelected && { backgroundColor: 'rgba(255, 255, 255, 0.05)' }
+                                            ]}
+                                            onPress={() => {
+                                                onSelect(item.value);
+                                                onClose();
+                                            }}
+                                        >
+                                            <Text style={[
+                                                styles.optionLabel,
+                                                isSelected && { color: themeColor, fontWeight: 'bold' }
+                                            ]}>
+                                                {item.label}
+                                            </Text>
+                                            {isSelected && (
+                                                <Ionicons name="checkmark" size={20} color={themeColor} />
+                                            )}
+                                        </TouchableOpacity>
+                                    );
                                 }}
-                            >
-                                <View style={styles.labelContainer}>
-                                    <Text style={[
-                                        styles.optionLabel,
-                                        currentValue === option.value && { color: themeColor, fontWeight: 'bold' }
-                                    ]}>
-                                        {option.label}
-                                    </Text>
-                                    {option.description && (
-                                        <Text style={styles.optionDescription}>{option.description}</Text>
-                                    )}
-                                </View>
-                                {currentValue === option.value && (
-                                    <Ionicons name="checkmark" size={20} color={themeColor} />
-                                )}
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-
-                    <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                        <Text style={styles.closeText}>Close</Text>
-                    </TouchableOpacity>
+                            />
+                        </View>
+                    </TouchableWithoutFeedback>
                 </View>
-            </View>
+            </TouchableWithoutFeedback>
         </Modal>
     );
 };
@@ -76,59 +79,42 @@ export const SelectionModal: React.FC<SelectionModalProps> = ({
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)', // Darker overlay for focus
         justifyContent: 'center',
         padding: 20,
     },
     modalContent: {
-        backgroundColor: Colors.surface,
+        backgroundColor: Colors.background,
         borderRadius: 12,
         borderWidth: 1,
         maxHeight: '70%',
-        padding: 20,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.5,
-        shadowRadius: 10,
-        elevation: 10,
+        overflow: 'hidden',
     },
-    title: {
-        fontSize: 18,
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        borderBottomWidth: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    },
+    headerTitle: {
+        fontSize: 16,
         fontWeight: 'bold',
-        marginBottom: 16,
-        textAlign: 'center',
-    },
-    optionList: {
-        marginBottom: 16,
+        fontFamily: 'monospace',
     },
     optionItem: {
         flexDirection: 'row',
-        alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 12,
-        paddingHorizontal: 8,
+        alignItems: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 20,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    labelContainer: {
-        flex: 1,
     },
     optionLabel: {
         color: Colors.text,
         fontSize: 16,
-    },
-    optionDescription: {
-        color: Colors.textDim,
-        fontSize: 12,
-        marginTop: 2,
-    },
-    closeButton: {
-        alignItems: 'center',
-        padding: 12,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        borderRadius: 8,
-    },
-    closeText: {
-        color: Colors.text,
-        fontWeight: 'bold',
+        fontFamily: 'monospace',
     },
 });
