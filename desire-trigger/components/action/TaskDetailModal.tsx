@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, Pressable, Dimensions, Alert, Vibration, Animated } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, Pressable, Dimensions, Alert, Vibration, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { Task } from '../../types';
@@ -11,34 +11,118 @@ interface TaskDetailModalProps {
     onCommit: (taskId: string) => void;
 }
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+
+const getModeLabel = (mode: string) => {
+    switch (mode) {
+        case 'EXPLORATION': return '探索';
+        case 'IMMERSION': return '没頭';
+        case 'ORGANIZATION': return '整理';
+        case 'CONTRIBUTION': return '貢献';
+        case 'REST': return '休息';
+        default: return mode;
+    }
+};
+
+const Scanline: React.FC<{ height: number; color: string }> = ({ height, color }) => {
+    const scan = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.timing(scan, {
+                toValue: 1,
+                duration: 3000,
+                easing: Easing.linear,
+                useNativeDriver: true,
+            })
+        ).start();
+    }, []);
+
+    const translateY = scan.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, height],
+    });
+
+    return (
+        <Animated.View
+            style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 4, // Thicker beam
+                backgroundColor: color,
+                opacity: 0.3,
+                transform: [{ translateY }],
+                shadowColor: color,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 1,
+                shadowRadius: 10,
+                zIndex: 10,
+            }}
+        />
+    );
+};
+
+const MODE_COMPLETION_LABELS: Record<string, string[]> = {
+    EXPLORATION: ['獲得'],
+    IMMERSION: ['覚醒'],
+    ORGANIZATION: ['最適化'],
+    CONTRIBUTION: ['創出'],
+    REST: ['充填'],
+};
+
+const getCompletionLabel = (mode: string, taskId: string) => {
+    const labels = MODE_COMPLETION_LABELS[mode] || ['達成', '完了', '突破'];
+    let hash = 0;
+    for (let i = 0; i < taskId.length; i++) {
+        hash = taskId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % labels.length;
+    return labels[index];
+};
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ visible, task, onClose, onCommit }) => {
-    // Local state to track "pressed" interaction
+    // Local state to track interaction
     const [isPressed, setIsPressed] = React.useState(false);
+    const [isLaunching, setIsLaunching] = React.useState(false);
 
     // Animation Values
     const chargeAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(1)).current;
+    const rocketAnim = useRef(new Animated.Value(0)).current; // 0 (Base) -> 1 (Launched)
+    const shakeAnim = useRef(new Animated.Value(0)).current;
+    const pulseAnim = useRef(new Animated.Value(0.5)).current;
 
     useEffect(() => {
         if (visible) {
             // Reset animations when modal opens
             chargeAnim.setValue(0);
             scaleAnim.setValue(1);
+            rocketAnim.setValue(0);
+            shakeAnim.setValue(0);
             setIsPressed(false);
+            setIsLaunching(false);
+
+            // Start Pulse Loop
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: false }),
+                    Animated.timing(pulseAnim, { toValue: 0.5, duration: 1500, useNativeDriver: false }),
+                ])
+            ).start();
         }
     }, [visible]);
 
     if (!task) return null;
 
-    // Check if task is already completed (passed from parent or task object)
+    // Check if task is already completed
     const isAlreadyCompleted = task.isCompleted || task.status === 'applied';
 
     // Interpolate background color for card glow
     const cardGlowColor = chargeAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: ['rgba(0,0,0,0)', 'rgba(0, 240, 255, 0.2)'] // Transparent -> Neon Blue Tint
+        outputRange: ['rgba(0,0,0,0)', 'rgba(0, 240, 255, 0.4)']
     });
 
     // Interpolate width for progress bar
@@ -47,70 +131,96 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ visible, task,
         outputRange: ['0%', '100%']
     });
 
+    // Rocket Physics
+    const rocketTranslateY = rocketAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, -height], // Fly off screen
+    });
+
+    const rocketScale = chargeAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.5, 1.5], // Grow while charging
+    });
+
     const handleLongPress = () => {
-        // Trigger completion haptic feedback
-        Vibration.vibrate([0, 50, 50, 50]); // Success pattern
+        if (isAlreadyCompleted || isLaunching) return;
+        setIsLaunching(true);
 
-        // Restore scale
-        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
+        // 1. Success Vibration
+        Vibration.vibrate([0, 50, 50, 50, 100, 200]); // intense pattern
 
-        // Commit action
-        onCommit(task.id);
+        // 2. Launch Animation
+        Animated.timing(rocketAnim, {
+            toValue: 1,
+            duration: 1500,
+            easing: Easing.ease, // Safe standard easing
+            useNativeDriver: true
+        }).start(({ finished }) => {
+            if (finished) {
+                // 3. Commit Action
+                onCommit(task.id);
 
-        // Show confirmation alert
-        Alert.alert(
-            "COMMITTED",
-            "プロトコルを実行しました。",
-            [
-                { text: "OK", onPress: onClose }
-            ]
-        );
+                // 4. Close Modal (Rocket has flown away)
+                setTimeout(() => {
+                    onClose();
+                }, 300);
+            }
+        });
     };
 
     const handlePressIn = () => {
-        if (!isAlreadyCompleted) {
+        if (!isAlreadyCompleted && !isLaunching) {
             setIsPressed(true);
-            // Trigger start haptic feedback
             Vibration.vibrate(50);
 
-            // Start charge animation
+            // Start Charge
             Animated.timing(chargeAnim, {
                 toValue: 1,
                 duration: 1000,
-                useNativeDriver: false // color/width interpolation requires false
+                useNativeDriver: false
             }).start();
 
-            // Start scale animation
-            Animated.spring(scaleAnim, {
-                toValue: 0.95,
-                useNativeDriver: true
-            }).start();
+            // Start Shake Loop
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(shakeAnim, { toValue: 5, duration: 50, useNativeDriver: true }),
+                    Animated.timing(shakeAnim, { toValue: -5, duration: 50, useNativeDriver: true }),
+                    Animated.timing(shakeAnim, { toValue: 5, duration: 50, useNativeDriver: true }),
+                    Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+                ])
+            ).start();
+
+            // Button Scale
+            Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true }).start();
         }
     };
 
     const handlePressOut = () => {
-        setIsPressed(false);
+        if (isLaunching) return; // Don't cancel if already launched
 
-        // Reset charge animation quickly
+        setIsPressed(false);
+        shakeAnim.stopAnimation();
+        shakeAnim.setValue(0);
+
+        // Reset Charge
         Animated.timing(chargeAnim, {
             toValue: 0,
             duration: 200,
             useNativeDriver: false
         }).start();
 
-        // Reset scale animation
-        Animated.spring(scaleAnim, {
-            toValue: 1,
-            useNativeDriver: true
-        }).start();
+        // Reset Scale
+        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
     };
 
-    // Dynamic border color based on task type
+    // Dynamic border color
     const accentColor = (() => {
-        switch (task.levelType) {
-            case 'quick': return '#00F0FF';
-            case 'core': return '#FF0055';
-            case 'deep': return '#FFD700';
+        switch (task.mode) {
+            case 'EXPLORATION': return '#2D9CDB';
+            case 'IMMERSION': return '#00FF9D';
+            case 'ORGANIZATION': return '#BD00FF';
+            case 'CONTRIBUTION': return '#FF9F1C';
+            case 'REST': return '#00F0FF';
             default: return '#00F0FF';
         }
     })();
@@ -124,7 +234,19 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ visible, task,
         >
             <View style={styles.overlay}>
 
-                <View style={[styles.container, { borderColor: accentColor }]}>
+                <Animated.View style={[
+                    styles.container,
+                    {
+                        borderColor: accentColor,
+                        shadowColor: accentColor,
+                        shadowOpacity: pulseAnim, // Pulsing Glow
+                        shadowRadius: pulseAnim.interpolate({
+                            inputRange: [0.5, 1],
+                            outputRange: [20, 50]
+                        })
+                    }
+                ]}>
+                    <Scanline height={450} color={accentColor} />
 
                     {/* Interior Card Glow Effect */}
                     <Animated.View
@@ -143,9 +265,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ visible, task,
 
                     {/* Header */}
                     <View style={styles.header}>
-                        <View style={[styles.tag, { backgroundColor: accentColor + '30', borderColor: accentColor }]}>
-                            <Text style={[styles.tagText, { color: accentColor }]}>
-                                {task.levelType?.toUpperCase()} :: {task.category}
+                        <View style={[
+                            styles.flashyTag,
+                            {
+                                borderColor: accentColor,
+                                shadowColor: accentColor
+                            }
+                        ]}>
+                            <View style={[styles.flashyTagBg, { backgroundColor: accentColor }]} />
+                            <Ionicons name="flash" size={14} color="#000" style={{ marginRight: 4 }} />
+                            <Text style={[styles.flashyTagText, { color: '#000' }]}>
+                                {getModeLabel(task.mode)}
                             </Text>
                         </View>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -200,7 +330,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ visible, task,
                                 )}
 
                                 <Text style={[styles.commitText, { color: isAlreadyCompleted ? Colors.textDim : accentColor }]}>
-                                    {isAlreadyCompleted ? "APPLIED" : "長押しで完了 (COMMIT)"}
+                                    {isAlreadyCompleted ? getCompletionLabel(task.mode, task.id) : "長押しで完了 (COMMIT)"}
                                 </Text>
                                 {isAlreadyCompleted && <Ionicons name="checkmark-done" size={24} color={Colors.textDim} style={{ marginLeft: 8, zIndex: 1 }} />}
                             </Pressable>
@@ -208,7 +338,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ visible, task,
 
                         {!isAlreadyCompleted && <Text style={[styles.hintText, { color: accentColor }]}>LONG PRESS TO EXECUTE</Text>}
                     </View>
-                </View>
+                </Animated.View>
             </View>
         </Modal>
     );
@@ -224,7 +354,7 @@ const styles = StyleSheet.create({
     },
     container: {
         width: '100%',
-        backgroundColor: 'rgba(20, 20, 40, 0.9)',
+        backgroundColor: 'rgba(15, 20, 35, 0.85)', // Glassy Space Theme
         borderRadius: 4, // Sharp corners for Cyberpunk feel
         borderWidth: 1,
         padding: 24,
@@ -252,16 +382,26 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
         marginBottom: 20,
     },
-    tag: {
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 2,
+    flashyTag: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
         borderWidth: 1,
+        transform: [{ skewX: '-15deg' }], // Cyberpunk Skew
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 10,
+        overflow: 'hidden',
     },
-    tagText: {
-        fontSize: 10,
-        fontWeight: 'bold',
-        letterSpacing: 1,
+    flashyTagBg: {
+        ...StyleSheet.absoluteFillObject,
+        opacity: 0.9,
+    },
+    flashyTagText: {
+        fontSize: 14,
+        fontWeight: '900',
+        letterSpacing: 2,
         fontFamily: 'monospace',
     },
     closeButton: {

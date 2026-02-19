@@ -7,10 +7,11 @@ import { ITEM_HEIGHT, SPACER_HEIGHT, SCREEN_WIDTH } from '../../constants/Layout
 interface TaskCarouselProps {
     tasks: Task[];
     onTaskPress: (task: Task) => void;
+    onCommit: (taskId: string) => void;
+    scrollY: Animated.Value;
 }
 
-export const TaskCarousel: React.FC<TaskCarouselProps> = ({ tasks, onTaskPress }) => {
-    const scrollY = useRef(new Animated.Value(0)).current;
+export const TaskCarousel: React.FC<TaskCarouselProps> = ({ tasks, onTaskPress, onCommit, scrollY }) => {
 
     const renderItem = ({ item, index }: { item: Task, index: number }) => {
         const inputRange = [
@@ -19,31 +20,43 @@ export const TaskCarousel: React.FC<TaskCarouselProps> = ({ tasks, onTaskPress }
             (index + 1) * ITEM_HEIGHT,
         ];
 
-        // Scale: Center 1.0, Ends 0.85
+        // Scale: Center 1.0, Ends 0.9
         const scale = scrollY.interpolate({
             inputRange,
-            outputRange: [0.85, 1, 0.85],
+            outputRange: [0.9, 1, 0.9],
             extrapolate: 'clamp',
         });
 
-        // Opacity: Center 1.0, Ends 0.6
+        // Opacity: Center 1.0, Ends 0.7
         const opacity = scrollY.interpolate({
             inputRange,
-            outputRange: [0.6, 1, 0.6],
+            outputRange: [0.7, 1, 0.7],
             extrapolate: 'clamp',
         });
 
         // RotateZ: Fan effect (Tilt left/right)
+        // Prevent rotation at edges (first/last item) when scrolling past
+        let rotateOutputRange = ['-15deg', '0deg', '15deg'];
+        let translateOutputRange = [-40, 0, 40];
+
+        if (index === 0) {
+            rotateOutputRange = ['0deg', '0deg', '15deg'];
+            translateOutputRange = [0, 0, 40];
+        } else if (tasks && index === tasks.length - 1) {
+            rotateOutputRange = ['-15deg', '0deg', '0deg'];
+            translateOutputRange = [-40, 0, 0];
+        }
+
         const rotateZ = scrollY.interpolate({
             inputRange,
-            outputRange: ['-15deg', '0deg', '15deg'],
+            outputRange: rotateOutputRange,
             extrapolate: 'clamp',
         });
 
         // TranslateX: Slide out slightly to emphasize fan
         const translateX = scrollY.interpolate({
             inputRange,
-            outputRange: [-40, 0, 40],
+            outputRange: translateOutputRange,
             extrapolate: 'clamp',
         });
 
@@ -74,6 +87,7 @@ export const TaskCarousel: React.FC<TaskCarouselProps> = ({ tasks, onTaskPress }
                     <TaskCard
                         task={item}
                         onPress={() => onTaskPress(item)}
+                        onCommit={onCommit}
                     />
                 </Animated.View>
             </View>
@@ -100,6 +114,12 @@ export const TaskCarousel: React.FC<TaskCarouselProps> = ({ tasks, onTaskPress }
                     { useNativeDriver: true }
                 )}
                 renderItem={renderItem}
+                getItemLayout={(data, index) => ({
+                    length: ITEM_HEIGHT,
+                    offset: ITEM_HEIGHT * index,
+                    index,
+                })}
+                initialScrollIndex={Math.max(0, Math.floor(tasks.length / 2))}
             />
         </View>
     );

@@ -8,4 +8,6 @@ export const Colors = {
   danger: '#DA3633',
   glass: 'rgba(22, 27, 34, 0.8)',
   terminal: '#0D1117',
+  textDim: '#8B949E',
+  success: '#238636',
 };

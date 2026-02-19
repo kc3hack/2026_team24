@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import '../global.css';
 import '../css-interop';
 import 'react-native-reanimated';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -16,14 +17,16 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="setup" options={{ headerShown: false, animation: 'fade' }} />
-        <Stack.Screen name="question" options={{ presentation: 'fullScreenModal', headerShown: false }} />
-        <Stack.Screen name="reflection" options={{ presentation: 'modal', headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="setup" options={{ headerShown: false, animation: 'fade' }} />
+          <Stack.Screen name="question" options={{ presentation: 'fullScreenModal', headerShown: false }} />
+          <Stack.Screen name="reflection" options={{ presentation: 'modal', headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        </Stack>
+        <StatusBar style="auto" />
+      </GestureHandlerRootView>
     </ThemeProvider>
   );
 }

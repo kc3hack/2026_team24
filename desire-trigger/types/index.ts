@@ -101,8 +101,15 @@ export type DiaryEntry = MetricDeltas & {
 
 // ─── タスク ─────────────────────────────────────────
 
-export type TaskType = 'quick' | 'core' | 'deep'
-export type TaskCategory = '探索系' | '集中系' | '実行系' | '休息系'
+// ─── タスク ─────────────────────────────────────────
+
+export type TaskMode =
+    | 'EXPLORATION'  // 探索モード（青）
+    | 'IMMERSION'    // 没頭モード（緑）
+    | 'ORGANIZATION' // 整理モード（紫）
+    | 'CONTRIBUTION' // 貢献モード（オレンジ）
+    | 'REST';        // 休息モード（シアン）
+
 export type TaskTimingTag = '朝' | '移動中' | '夜' | '休日'   // 行動画面のフィルタ・通知に使う
 export type ActionTiming = 'night' | 'morning' | 'auto'       // ユーザーが診断後に選んだ実行タイミング
 export type TaskStatus = 'pending' | 'applied' | 'expired'
@@ -113,8 +120,7 @@ export type Task = {
     diagnostic_id: string
     title: string
     description: string
-    type: TaskType
-    category: TaskCategory
+    mode: TaskMode                    // New Mode
     timing_tag: TaskTimingTag         // 朝・移動中・夜・休日
     action_timing: ActionTiming       // ユーザーが選んだ「いつやるか」
     buff_metric: MetricKey            // バフをかける指標
@@ -126,10 +132,11 @@ export type Task = {
     created_at: ISODateString
 
     // Requested Extensions for Action Screen
-    levelType?: TaskType // Alias for type
     buffValue?: number   // Alias for buff_delta
     expiresAt?: ISODateString // Alias for task_expires_at
-    isCompleted?: boolean // Helper for UI state
+    duration: number;                 // Estimated duration in minutes
+    difficulty: 'QUICK' | 'CORE' | 'DEEP'; // Difficulty level
+    isCompleted?: boolean; // Helper for UI state
 }
 
 // ─── 質問 ───────────────────────────────────────────
