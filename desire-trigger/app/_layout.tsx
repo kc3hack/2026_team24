@@ -3,7 +3,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import '../global.css';
 import '../css-interop';
-import 'react-native-reanimated';
+import 'react-native-reanimated';https://github.com/kc3hack/2026_team24/pull/20/conflict?name=desire-trigger%252Ftypes%252Findex.ts&ancestor_oid=5db2db7ed8931d463d6e6f3550646f7d9ad1d95b&base_oid=12e4a0ad11431f8ec04e6b9d7cde2d8297358757&head_oid=67adaa0e0f58728aad4cb4e4a6e9e3ffc10fb38a
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
