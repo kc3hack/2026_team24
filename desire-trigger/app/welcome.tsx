@@ -1,188 +1,236 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { View, Text, Pressable, Animated, StyleSheet, Easing, Dimensions, Platform } from 'react-native';
+import React, { useEffect, useState, useMemo } from 'react';
+import { View, Text, StyleSheet, Dimensions, TouchableWithoutFeedback } from 'react-native';
+import Svg, { Circle, Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedProps,
+  withTiming,
+  Easing,
+  interpolate,
+  interpolateColor,
+  runOnJS,
+} from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
-const { height, width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-// ⚙️ システム設定：エンジニアリング・リソース最適化
-const COLUMN_COUNT = 18; // 列数
-const CHAR_COUNT_PER_COL = 35; // 1列あたりの文字数
-const CHARGE_DURATION = 6000;
+// --- ⚙️ システム設定 ---
+const BG_DARK = '#000208';
+const THEME_CYAN = '#00E5FF';
+const THEME_PURPLE = '#7C5CFF';
+const THEME_GREEN = '#39FF14';
 
-const NEON_GREEN = '#39FF14';
-const NEON_RED = '#FF073A';
+const PORTAL_SIZE = Math.min(width, height) * 1.0; // もやの範囲を最大化
+const PORTAL_CENTER_X = width / 2;
+const PORTAL_CENTER_Y = height * 0.50;
 
-// 👾 高速データ・ストリーム（列単位で描画を最適化）
-const MatrixColumn = React.memo(({ isStable }: { isStable: boolean }) => {
-  const [stream, setStream] = useState("");
-  const [redPos, setRedPos] = useState(-1);
+const STAR_COUNT = 150;
+const MAX_STAR_RADIUS = Math.sqrt(width * width + height * height) * 0.8; // 円形範囲
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      // 数字の更新（文字列として一括処理）
-      let newStream = "";
-      for (let i = 0; i < CHAR_COUNT_PER_COL; i++) {
-        newStream += Math.random() > 0.5 ? "1\n" : "0\n";
-      }
-      setStream(newStream);
+const generateStars = () => {
+  const colors = ['#FFFFFF', THEME_CYAN, THEME_PURPLE];
+  return [...Array(STAR_COUNT)].map(() => {
+    const angle = Math.random() * 2 * Math.PI;
+    const radius = Math.sqrt(Math.random()) * MAX_STAR_RADIUS;
+    return {
+      id: Math.random(),
+      x: PORTAL_CENTER_X + radius * Math.cos(angle),
+      y: PORTAL_CENTER_Y + radius * Math.sin(angle),
+      size: Math.random() * 1.8 + 0.4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+    };
+  });
+};
 
-      // ノイズ（赤）の位置をランダムに変更
-      if (!isStable) {
-        setRedPos(Math.floor(Math.random() * CHAR_COUNT_PER_COL));
-      } else {
-        setRedPos(-1);
-      }
-    }, 80 + Math.random() * 100); // 各列にバラつきを持たせて自然なパチパチ感
-
-    return () => clearInterval(timer);
-  }, [isStable]);
-
-  return (
-    <View style={styles.columnContainer}>
-      <Text style={[styles.matrixText, { color: NEON_GREEN }]}>
-        {/* 文字列をスプリットして、一箇所だけ赤色にするロジック */}
-        {stream.split('\n').map((char, idx) => (
-          <Text key={idx} style={{ color: idx === redPos ? NEON_RED : NEON_GREEN }}>
-            {char}{'\n'}
-          </Text>
-        ))}
-      </Text>
-    </View>
-  );
-});
-
-export default function WelcomeScreen() {
+export default function SupernovaWelcome() {
   const router = useRouter();
-  const chargeAnim = useRef(new Animated.Value(0)).current;
-  const [isStable, setIsStable] = useState(false);
+  const [targetPath, setTargetPath] = useState<string | null>(null);
+  const stars = useMemo(() => generateStars(), []);
 
+  const charge = useSharedValue(0);
+  const portalScale = useSharedValue(1);
+  const portalOpacity = useSharedValue(1);
+  const uiFade = useSharedValue(1);
+  const starGatherProgress = useSharedValue(0);
+  const isLaunching = useSharedValue(false);
+
+  // 1. 画面遷移の実行
   useEffect(() => {
-    const id = chargeAnim.addListener(({ value }) => {
-      // チャージ100%で全緑化
-      if (value >= 0.99) setIsStable(true);
-      else setIsStable(false);
+    if (targetPath) {
+      const timer = setTimeout(() => {
+        router.replace(targetPath as any);
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, [targetPath]);
+
+  // 2. ポータルの静かな消滅（フラッシュなし）
+  const triggerPortalFadeOut = () => {
+    portalScale.value = withTiming(1.1, { duration: 400, easing: Easing.out(Easing.quad) });
+    portalOpacity.value = withTiming(0, { duration: 400 });
+  };
+
+  // 3. アニメーションシーケンスの開始
+  const startSequence = async () => {
+    let next: string = '/(tabs)';
+    try {
+      const launched = await AsyncStorage.getItem('hasLaunched');
+      if (!launched) {
+        await AsyncStorage.setItem('hasLaunched', 'true');
+        next = '/setup';
+      }
+    } catch (e) { }
+
+    try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch (e) { }
+
+    uiFade.value = withTiming(0, { duration: 250 });
+
+    // 星の収束（サイズ0へ）
+    starGatherProgress.value = withTiming(1, {
+      duration: 500,
+      easing: Easing.bezier(0.25, 1, 0.5, 1)
+    }, (finished) => {
+      if (finished) {
+        runOnJS(triggerPortalFadeOut)();
+        runOnJS(setTargetPath)(next);
+      }
     });
-    return () => chargeAnim.removeListener(id);
-  }, [isStable]);
+  };
 
   const handlePressIn = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    Animated.timing(chargeAnim, { toValue: 1, duration: CHARGE_DURATION, easing: Easing.linear, useNativeDriver: false }).start();
-  };
+    if (isLaunching.value) return;
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); } catch (e) { }
+    charge.value = withTiming(1, { duration: 1200 });
+    starGatherProgress.value = withTiming(0.12, { duration: 1200 });
 
-  const handlePressOut = async () => {
-    if ((chargeAnim as any)._value > 0.98) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      const hasLaunched = await AsyncStorage.getItem('hasLaunched');
-      if (hasLaunched) {
-        // 2回目以降は必ずホームへ (今日の質問はホームから任意で)
-        router.replace('/(tabs)');
-      } else {
-        // 初回はセットアップへ
-        router.replace('/setup');
+    charge.value = withTiming(1, { duration: 1200 }, (finished) => {
+      if (finished && !isLaunching.value) {
+        isLaunching.value = true;
+        runOnJS(startSequence)();
       }
-    } else {
-      Animated.timing(chargeAnim, { toValue: 0, duration: 400, useNativeDriver: false }).start();
-    }
+    });
   };
 
-  const uiColor = isStable ? NEON_GREEN : NEON_RED;
+  const handlePressOut = () => {
+    if (isLaunching.value) return;
+    charge.value = withTiming(0, { duration: 300 });
+    starGatherProgress.value = withTiming(0, { duration: 400 });
+  };
+
+  const StarField = () => {
+    return stars.map((star) => {
+      const animatedProps = useAnimatedProps(() => {
+        const p = starGatherProgress.value;
+        const currentX = interpolate(p, [0, 1], [star.x, PORTAL_CENTER_X]);
+        const currentY = interpolate(p, [0, 1], [star.y, PORTAL_CENTER_Y]);
+        const currentSize = interpolate(p, [0, 0.9, 1], [star.size, 0.5, 0], 'clamp');
+
+        return {
+          cx: currentX,
+          cy: currentY,
+          r: currentSize,
+          fillOpacity: interpolate(p, [0, 0.8, 1], [0.6, 1, 0]),
+        };
+      });
+      return <AnimatedCircle key={star.id} fill={star.color} animatedProps={animatedProps} />;
+    });
+  };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000' }}>
-      {/* 背景：ノード数を激減させた軽量マトリックス */}
-      <View style={styles.backgroundWrapper} pointerEvents="none">
-        {[...Array(COLUMN_COUNT)].map((_, i) => (
-          <MatrixColumn key={i} isStable={isStable} />
-        ))}
+    <View style={styles.container}>
+      <View style={StyleSheet.absoluteFill}>
+        <Svg height={height} width={width}>
+          <Rect width={width} height={height} fill={BG_DARK} />
+          <StarField />
+        </Svg>
       </View>
 
-      <SafeAreaView style={{ flex: 1, paddingHorizontal: 30 }}>
-        <View style={{ flex: 1, alignItems: 'center', marginTop: 50 }}>
-
-          <View style={[styles.iconContainer, { borderColor: uiColor, shadowColor: uiColor }]}>
-            <MaterialCommunityIcons
-              name={isStable ? "brain" : "head-cog-outline"}
-              size={64}
-              color={uiColor}
-            />
-          </View>
-
-          <Text style={[styles.statusText, { color: uiColor }]}>
-            {isStable ? '> DECODING_COMPLETE' : '> SCANNING_ENGINEER_CORE...'}
-          </Text>
-
-          <View style={styles.titleContainer}>
-            <Text style={styles.titleBase}>Desire</Text>
-            <Text style={[styles.titleAccent, { color: uiColor, textShadowColor: uiColor }]}>Trigger</Text>
-          </View>
-
-          <View style={{ width: '100%', marginTop: 60 }}>
-            <Pressable
-              onPressIn={handlePressIn}
-              onPressOut={handlePressOut}
-              style={[styles.button, { borderColor: uiColor }]}
-            >
-              <Animated.View
-                style={[
-                  styles.chargeBar,
-                  {
-                    width: chargeAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-                    backgroundColor: uiColor,
-                  }
-                ]}
-              />
-              <View style={styles.buttonContent}>
-                <Feather name={isStable ? "play" : "lock"} size={26} color="#FFF" style={{ marginRight: 15 }} />
-                <Text style={styles.buttonText}>{isStable ? "BOOT" : "EXTRACT"}</Text>
-              </View>
-            </Pressable>
-
-            <Text style={[styles.guideText, { color: isStable ? NEON_GREEN : '#444' }]}>
-              {isStable ? "DATA SYNCHRONIZED" : "HOLD TO ANALYZE"}
-            </Text>
-          </View>
-
+      {/* Terminal Overlay (四隅のIT装飾) */}
+      <Animated.View style={[styles.terminalOverlay, { opacity: uiFade }]} pointerEvents="none">
+        <View style={styles.termTopLeft}>
+          <Text style={styles.termText}>SYS_STATUS: ACTIVE</Text>
+          <Text style={styles.termText}>SEC_PROTOCOL: CYBER_SEC_V01</Text>
         </View>
-      </SafeAreaView>
+        <View style={styles.termTopRight}>
+          <Text style={styles.termText}>NODE_ID: 0x7C5CFF</Text>
+          <Text style={styles.termText}>LOC: 34.72N_135.62E</Text>
+        </View>
+      </Animated.View>
+
+      {/* Portal */}
+      <Animated.View style={[{ position: 'absolute', width: PORTAL_SIZE, height: PORTAL_SIZE },
+      useAnimatedStyle(() => ({
+        transform: [
+          { translateX: PORTAL_CENTER_X - PORTAL_SIZE / 2 },
+          { translateY: PORTAL_CENTER_Y - PORTAL_SIZE / 2 },
+          { scale: portalScale.value }
+        ],
+        opacity: portalOpacity.value,
+      }))]}>
+        <Svg width={PORTAL_SIZE} height={PORTAL_SIZE} viewBox={`0 0 ${PORTAL_SIZE} ${PORTAL_SIZE}`}>
+          <Defs>
+            <RadialGradient id="portalRad" cx="50%" cy="50%" r="50%">
+              <Stop offset="0%" stopColor={THEME_CYAN} stopOpacity="0.8" />
+              <Stop offset="70%" stopColor={THEME_PURPLE} stopOpacity="0.4" />
+              <Stop offset="100%" stopColor="#000000" stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+          <AnimatedCircle cx={PORTAL_SIZE / 2} cy={PORTAL_SIZE / 2} fill="url(#portalRad)"
+            animatedProps={useAnimatedProps(() => ({
+              r: (PORTAL_SIZE * 0.25) + interpolate(charge.value, [0, 1], [0, PORTAL_SIZE * 0.2])
+            }))}
+          />
+        </Svg>
+      </Animated.View>
+
+      <Animated.View style={[styles.uiContainer, { opacity: uiFade }]} pointerEvents="box-none">
+        <View style={styles.top}>
+          <View style={styles.titleWrapper}>
+            <Text style={styles.titleBracket}>[</Text>
+            <Text style={styles.brandTitle}>DESIRE　TRIGGER</Text>
+            <Text style={styles.titleBracket}>]</Text>
+          </View>
+          <View style={styles.sep} />
+          <Text style={styles.subtitle}></Text>
+        </View>
+
+        <View style={styles.bottom}>
+          <TouchableWithoutFeedback onPressIn={handlePressIn} onPressOut={handlePressOut}>
+            <View style={styles.actionWrapper}>
+              <Animated.Text style={[styles.actionLabel, useAnimatedStyle(() => ({
+                color: interpolateColor(charge.value, [0, 1], [THEME_CYAN, THEME_GREEN]),
+              }))]}>開始する</Animated.Text>
+            </View>
+          </TouchableWithoutFeedback>
+          <Text style={styles.hint}>長押ししてください</Text>
+        </View>
+      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  backgroundWrapper: {
-    ...StyleSheet.absoluteFillObject,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    opacity: 0.5,
+  container: { flex: 1, backgroundColor: BG_DARK },
+  terminalOverlay: { ...StyleSheet.absoluteFillObject, padding: 30 },
+  termTopLeft: { position: 'absolute', top: 55, left: 25 },
+  termTopRight: { position: 'absolute', top: 55, right: 25, alignItems: 'flex-end' },
+  termText: { color: THEME_CYAN, fontSize: 9, fontWeight: 'bold', letterSpacing: 1, opacity: 0.5, marginBottom: 4 },
+  uiContainer: { flex: 1, justifyContent: 'space-between', alignItems: 'center', paddingVertical: 80 },
+  top: { alignItems: 'center', marginTop: 30 },
+  titleWrapper: { flexDirection: 'row', alignItems: 'center' },
+  titleBracket: { color: THEME_CYAN, fontSize: 32, fontWeight: '200', opacity: 0.5, marginHorizontal: 12 },
+  brandTitle: {
+    color: '#FFF', fontSize: 28, fontWeight: '900', letterSpacing: 4,
+    textShadowColor: THEME_CYAN, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10,
   },
-  columnContainer: {
-    width: width / COLUMN_COUNT,
-    alignItems: 'center',
-  },
-  matrixText: {
-    fontSize: 18,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    fontWeight: '900',
-    textAlign: 'center',
-    lineHeight: 20,
-    textShadowRadius: 5,
-  },
-  iconContainer: {
-    width: 120, height: 120, borderRadius: 60, borderWidth: 3, justifyContent: 'center', alignItems: 'center', marginBottom: 20, shadowOpacity: 0.8, shadowRadius: 20, elevation: 10, backgroundColor: '#000',
-  },
-  statusText: { fontWeight: 'bold', letterSpacing: 2, fontSize: 10, marginBottom: 8 },
-  titleContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  titleBase: { color: '#FFF', fontSize: 44, fontWeight: '900', fontStyle: 'italic', textShadowColor: '#FFF', textShadowRadius: 8 },
-  titleAccent: { fontSize: 44, fontWeight: '900', fontStyle: 'italic', marginLeft: 10, textShadowRadius: 15 },
-  button: { width: '100%', height: 75, backgroundColor: '#050505', borderRadius: 20, borderWidth: 2, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
-  buttonContent: { flexDirection: 'row', alignItems: 'center', zIndex: 10 },
-  chargeBar: { position: 'absolute', left: 0, top: 0, bottom: 0, opacity: 0.8 },
-  buttonText: { color: '#FFF', fontSize: 22, fontWeight: '900', letterSpacing: 4 },
-  guideText: { fontSize: 10, textAlign: 'center', marginTop: 15, fontWeight: 'bold', letterSpacing: 1 },
+  sep: { width: 60, height: 1, backgroundColor: THEME_CYAN, marginVertical: 15, opacity: 0.3 },
+  subtitle: { color: THEME_CYAN, fontSize: 10, letterSpacing: 2, fontWeight: 'bold', opacity: 0.8 },
+  bottom: { width: '100%', alignItems: 'center', paddingBottom: 0 },
+  actionWrapper: { width: 240, height: 64, borderRadius: 4, borderWidth: 1, borderColor: THEME_CYAN, backgroundColor: 'rgba(0,229,255,0.03)', justifyContent: 'center', alignItems: 'center' },
+  actionLabel: { fontSize: 12, letterSpacing: 3, fontWeight: 'bold' },
+  hint: { color: 'rgba(255,255,255,0.3)', fontSize: 9, marginTop: 15, fontWeight: 'bold' },
 });
