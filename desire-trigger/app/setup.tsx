@@ -1,139 +1,441 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Animated, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, TextInput, Pressable, ScrollView, Animated, KeyboardAvoidingView, Platform, Dimensions, LayoutAnimation, UIManager, Keyboard, Easing } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Haptics from 'expo-haptics';
+import * as Notifications from 'expo-notifications';
+import { scheduleNotification } from '../hooks/useNotification';
+// OccupationScatter removed, not used anymore
+import SelectionGrid from '../components/setup/SelectionGrid';
+import StarryBackground from '../components/ui/StarryBackground';
+
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+const { width, height } = Dimensions.get('window');
+
+// Types
+type SetupStep = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+
+
+type FormData = {
+  userName: string;
+  techStack: string[];
+  techOther: string;
+  hobbies: string[];
+  hobbiesOther: string;
+  worries: string[];
+  worriesOther: string;
+  selectedMode: string;
+  notifTime: Date;
+};
+
+// Constants
+const TECH_STACK_OPTIONS = [
+  'フロントエンド', 'バックエンド', 'モバイル', 'インフラ・クラウド',
+  'AI・ML', 'セキュリティ', 'データ', 'ゲーム開発',
+  'その他'
+];
+
+const WORRIES_OPTIONS = [
+  '人間関係', 'スキル・成長', '締め切り・納期', '将来・キャリア',
+  'モチベーション', '睡眠・体調', '評価・承認', 'お金',
+  'その他'
+];
+
+const HOBBIES = ['読書', 'ゲーム', '映画', '料理', '旅行', '筋トレ', '音楽', '創作', 'その他'];
+
+const MODES = [
+  { name: '探索', emoji: '🚀', label: '全力疾走' },
+  { name: '没頭', emoji: '📚', label: 'インプット期' },
+  { name: '整理', emoji: '🧹', label: 'リセット中' },
+  { name: '貢献', emoji: '🤝', label: 'つながりたい' },
+  { name: '元気', emoji: '⚡', label: 'エネルギー満タン' },
+];
 
 export default function SetupScreen() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const [showPicker, setShowPicker] = useState(false);
+  const [step, setStep] = useState<SetupStep>(0);
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
-  const [formData, setFormData] = useState({
+
+  // Progress Bar Animation State
+  const [isProgressAnimating, setIsProgressAnimating] = useState(false);
+
+  // Form Data
+  // Form Data
+  const [formData, setFormData] = useState<FormData>({
     userName: '',
-    ageGroup: '',
-    lifestyle: '',
-    interest: '',
-    jobType: '',
-    techStack: '',
-    currentMode: '',
+    techStack: [],
+    techOther: '',
+    hobbies: [],
+    hobbiesOther: '',
+    worries: [],
+    worriesOther: '',
+    selectedMode: '',
     notifTime: new Date(new Date().setHours(21, 0, 0, 0)),
-    weekdayFreeTime: '2',
-    weekendFreeTime: '5',
   });
 
-  const nextStep = () => {
-    if (step === 1 && !formData.userName.trim()) {
-      alert("ユーザー名を入力してください");
-      return;
-    }
+  const [notifPermission, setNotifPermission] = useState<Notifications.PermissionStatus | null>(null);
 
-    Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
-      setStep(s => s + 1);
-      Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+  const [showPicker, setShowPicker] = useState(false);
+
+  // Helper to update form safely
+  const updateForm = (key: keyof FormData, value: any) => {
+    setFormData(prev => ({ ...prev, [key]: value }));
+  };
+
+  const toggleArrayItem = (key: 'techStack' | 'hobbies' | 'worries', item: string) => {
+    setFormData(prev => {
+      const list = prev[key];
+      if (list.includes(item)) {
+        return { ...prev, [key]: list.filter(i => i !== item) };
+      } else {
+        return { ...prev, [key]: [...list, item] };
+      }
     });
+    Haptics.selectionAsync();
+  };
+
+  const handleNext = () => {
+    Keyboard.dismiss();
+
+    // Validation
+    if (step === 1 && !formData.userName.trim()) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return alert("名前を入力してください");
+    }
+    if (step === 2 && formData.techStack.length === 0) return alert("好きな技術を1つ以上選択してください");
+    if (step === 3 && formData.hobbies.length === 0) return alert("趣味を1つ以上選択してください");
+    if (step === 4 && formData.worries.length === 0) return alert("悩みやすいことを1つ以上選択してください");
+    if (step === 5 && !formData.selectedMode) return alert("モードを選択してください");
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    if (step < 6) {
+      setStep(s => (s + 1) as SetupStep);
+    } else {
+      saveAndFinish();
+    }
+  };
+
+  // Reset animation when step changes
+  useEffect(() => {
+    slideAnim.setValue(0);
+  }, [step]);
+
+  const handleBack = () => {
+    if (step === 0) return;
+    Keyboard.dismiss();
+    slideAnim.setValue(0);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setStep(s => (s - 1) as SetupStep);
+  };
+
+  // Notification Permissions
+  useEffect(() => {
+    if (step === 6) {
+      checkNotifPermission();
+    }
+  }, [step]);
+
+  const checkNotifPermission = async () => {
+    const { status } = await Notifications.getPermissionsAsync();
+    setNotifPermission(status);
+  };
+
+  const requestNotifPermission = async () => {
+    const { status } = await Notifications.requestPermissionsAsync();
+    setNotifPermission(status);
+    if (status === 'granted') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
   };
 
   const saveAndFinish = async () => {
-    if (!formData.userName.trim()) {
-      alert("ユーザー名を入力してください");
-      return;
-    }
-
     try {
+      // Schedule notification if permission granted
+      if (notifPermission === 'granted') {
+        const timeStr = `${formData.notifTime.getHours()}:${formData.notifTime.getMinutes().toString().padStart(2, '0')}`;
+        await scheduleNotification(timeStr);
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // 1. Generate Mock Profile ID
+      const mockProfileId = 'mock-user-' + Math.random().toString(36).substr(2, 9);
+
+      // 2. Prepare Data
+      const finalTech = formData.techStack.map(t => t === 'その他' ? formData.techOther : t).filter(Boolean);
+      const finalHobbies = formData.hobbies.map(h => h === 'その他' ? formData.hobbiesOther : h).filter(Boolean);
+      const finalWorries = formData.worries.map(w => w === 'その他' ? formData.worriesOther : w).filter(Boolean);
       const timeStr = `${formData.notifTime.getHours()}:${formData.notifTime.getMinutes().toString().padStart(2, '0')}`;
+
+      // 3. Save to AsyncStorage
       const data: [string, string][] = [
-        ['userName', String(formData.userName)],
-        ['ageGroup', String(formData.ageGroup)],
-        ['lifestyle', String(formData.lifestyle)],
-        ['interest', String(formData.interest)],
-        ['jobType', String(formData.jobType)],
-        ['techStack', String(formData.techStack)],
-        ['currentMode', String(formData.currentMode)],
+        ['profile_id', mockProfileId],
+        ['userName', formData.userName],
+        ['techStack', JSON.stringify(finalTech)],
+        ['hobbies', JSON.stringify(finalHobbies)],
+        ['worries', JSON.stringify(finalWorries)],
+        ['selectedMode', formData.selectedMode],
         ['notifTime', timeStr],
-        ['weekdayFreeTime', String(formData.weekdayFreeTime)],
-        ['weekendFreeTime', String(formData.weekendFreeTime)],
         ['hasLaunched', 'true']
       ];
+
       await AsyncStorage.multiSet(data);
-      router.replace('/question/answer'); // 初回のみ直接質問へ
+
+      // 4. Navigate
+      router.replace('/(tabs)');
+
     } catch (e) {
       console.error(e);
+      alert("保存に失敗しました");
     }
   };
 
-  const SelectChip = ({ label, value, field }: { label: string, value: string, field: keyof typeof formData }) => (
+  // --- UI Components ---
+
+  // Render Progress Bar
+  const StepIndicator = ({ isAnimating }: { isAnimating: boolean }) => {
+    // We animate the width based on 'step'.
+    // Target percentage = (step / 6) * 100
+    // We can animate a value 0 -> 6 and interpolate, or 0 -> 100.
+    const progressAnim = useRef(new Animated.Value(step)).current;
+
+    useEffect(() => {
+      Animated.timing(progressAnim, {
+        toValue: step,
+        duration: 600, // Faster fill (~0.6s)
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: false, // width doesn't support native driver
+      }).start();
+    }, [step]);
+
+    const widthInterp = progressAnim.interpolate({
+      inputRange: [0, 6],
+      outputRange: ['0%', '100%'],
+    });
+
+    return (
+      <View style={{ flexDirection: 'row', height: 4, backgroundColor: '#334155', borderRadius: 2, marginBottom: 24, marginHorizontal: 4 }}>
+        <Animated.View
+          style={{
+            width: widthInterp,
+            backgroundColor: '#FBBF24',
+            borderRadius: 2
+          }}
+        />
+      </View>
+    );
+  };
+
+  const Title = ({ main, sub }: { main: string, sub: string }) => (
+    <View className="mb-6">
+      <Text className="text-[#FBBF24] font-bold mb-1 tracking-widest text-xs">STEP {step.toString().padStart(2, '0')} / 06</Text>
+      <Text className="text-white text-3xl font-bold">{main}</Text>
+      <Text className="text-gray-400 text-sm mt-2">{sub}</Text>
+    </View>
+  );
+
+  const ModeCard = ({ mode }: { mode: typeof MODES[0] }) => (
     <Pressable
-      onPress={() => setFormData({ ...formData, [field]: value })}
-      className={`px-4 py-3 rounded-xl border mr-2 mb-2 ${formData[field] === value ? 'bg-[#3B82F6] border-[#3B82F6]' : 'bg-gray-900 border-gray-700'}`}
+      onPress={() => {
+        updateForm('selectedMode', mode.name);
+        Haptics.selectionAsync();
+      }}
+      className={`w-full mb-3 flex-1 rounded-2xl border flex-row items-center justify-between px-6 ${formData.selectedMode === mode.name ? 'bg-slate-800 border-[#3B82F6]' : 'bg-slate-900 border-slate-800'}`}
     >
-      <Text className={`font-bold ${formData[field] === value ? 'text-white' : 'text-gray-400'}`}>{label}</Text>
+      <View className="flex-row items-center">
+        <Text className="text-4xl mr-6">{mode.emoji}</Text>
+        <View>
+          <Text className={`font-bold text-2xl ${formData.selectedMode === mode.name ? 'text-[#3B82F6]' : 'text-white'}`}>{mode.name}</Text>
+          <Text className="text-gray-400 text-sm mt-1">{mode.label}</Text>
+        </View>
+      </View>
+      {formData.selectedMode === mode.name && <Feather name="check" size={24} color="#3B82F6" />}
     </Pressable>
   );
 
-  return (
-    <SafeAreaView className="flex-1 bg-[#121212]">
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-        <Animated.View style={{ opacity: fadeAnim }} className="flex-1">
-          <ScrollView className="flex-1 px-8 pt-8" keyboardShouldPersistTaps="handled">
-            {step === 1 && (
-              <View>
-                <Text className="text-[#3B82F6] font-bold mb-2 tracking-widest">{'>{'} PHASE_01</Text>
-                <Text className="text-white text-3xl font-bold mb-8">IDENTITY</Text>
-                <TextInput
-                  className="bg-gray-900 border-2 border-gray-700 rounded-xl p-4 text-white text-lg font-bold mb-6"
-                  placeholder="ユーザー名" placeholderTextColor="#4b5563"
-                  value={formData.userName} onChangeText={(t) => setFormData({ ...formData, userName: t })}
+  // --- Render Steps ---
+
+  const renderContent = () => {
+    switch (step) {
+      case 0:
+        return (
+          <View className="flex-1 justify-center items-center px-4">
+            <View>
+              {/* Title Row */}
+              <View className="flex-row items-center justify-center mb-2">
+                <Text className="text-white text-2xl font-bold text-center">初期セットアップをはじめます</Text>
+              </View>
+
+              {/* Sub Text */}
+              <Text className="text-gray-400 text-base text-center mt-2">あなたに合った体験をカスタマイズします</Text>
+            </View>
+          </View>
+        );
+      case 1:
+        return (
+          <View>
+            <Title main="What is your name?" sub="あなたのお名前を教えてください" />
+            <TextInput
+              className="bg-slate-900 border-2 border-slate-700 rounded-xl px-5 py-4 text-white text-[18px] font-bold mb-6"
+              placeholder="Display Name"
+              placeholderTextColor="#475569"
+              value={formData.userName}
+              onChangeText={t => updateForm('userName', t)}
+              autoFocus={false}
+            />
+          </View>
+        );
+      case 2:
+        return (
+          <View>
+            <Title main="Favorite Tech" sub="好きな技術を選んでください（複数選択可）" />
+            <SelectionGrid
+              options={TECH_STACK_OPTIONS}
+              selectedItems={formData.techStack}
+              onSelect={(items) => updateForm('techStack', items)}
+              otherValue={formData.techOther}
+              onOtherChange={(text) => updateForm('techOther', text)}
+            />
+          </View>
+        );
+      case 3:
+        return (
+          <View>
+            <Title main="Hobbies" sub="休日の過ごし方や好きなことは？（複数選択可）" />
+            <SelectionGrid
+              options={HOBBIES}
+              selectedItems={formData.hobbies}
+              onSelect={(items) => updateForm('hobbies', items)}
+              otherValue={formData.hobbiesOther}
+              onOtherChange={(text) => updateForm('hobbiesOther', text)}
+            />
+          </View>
+        );
+      case 4:
+        return (
+          <View>
+            <Title main="Worries" sub="悩みやすいこと（複数選択可）" />
+            <SelectionGrid
+              options={WORRIES_OPTIONS}
+              selectedItems={formData.worries}
+              onSelect={(items) => updateForm('worries', items)}
+              otherValue={formData.worriesOther}
+              onOtherChange={(text) => updateForm('worriesOther', text)}
+            />
+          </View>
+        );
+      case 5:
+        return (
+          <View style={{ flex: 1 }}>
+            <Title main="Current Mode" sub="今の気分や状態に最も近いモードは？" />
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
+            >
+              {MODES.map(mode => <ModeCard key={mode.name} mode={mode} />)}
+            </ScrollView>
+          </View>
+        );
+      case 6:
+        return (
+          <View className="flex-1">
+            <Title main="Notification Time" sub="毎日この時間に診断をお届けします" />
+
+            <View className="flex-1 justify-center items-center">
+              <View className="items-center mb-6">
+                <Feather name="clock" size={40} color="#3B82F6" style={{ marginBottom: 16 }} />
+              </View>
+
+              {/* Large Time Display */}
+              <Text className="text-white font-bold text-[56px] tracking-widest text-center shadow-lg shadow-blue-500/50 mb-4">
+                {formData.notifTime.getHours()}:{formData.notifTime.getMinutes().toString().padStart(2, '0')}
+              </Text>
+
+              {/* DateTimePicker */}
+              <View className="mb-8" style={{ transform: [{ scale: 1.1 }] }}>
+                <DateTimePicker
+                  value={formData.notifTime}
+                  mode="time"
+                  display="spinner"
+                  is24Hour={true}
+                  onChange={(e, d) => {
+                    if (d) updateForm('notifTime', d);
+                  }}
+                  textColor='white'
+                  style={{ height: 120, width: 200 }}
                 />
-                <View className="flex-row flex-wrap mb-6">
-                  {['10代', '20代', '30代', '40代'].map(v => <SelectChip key={v} label={v} value={v} field="ageGroup" />)}
-                </View>
-                <View className="flex-row flex-wrap mb-10">
-                  {['学生', '社会人', 'その他'].map(v => <SelectChip key={v} label={v} value={v} field="lifestyle" />)}
-                </View>
-                <Pressable onPress={nextStep} className="bg-[#3B82F6] py-5 rounded-2xl items-center">
-                  <Text className="text-white font-bold text-lg">NEXT_PHASE</Text>
-                </Pressable>
               </View>
-            )}
-            {step === 2 && (
-              <View>
-                <Text className="text-[#3B82F6] font-bold mb-2 tracking-widest">{'>{'} PHASE_02</Text>
-                <Text className="text-white text-3xl font-bold mb-8">EXPERTISE</Text>
-                <View className="flex-row flex-wrap mb-6">
-                  {['仕事', '趣味', '人間関係'].map(v => <SelectChip key={v} label={v} value={v} field="interest" />)}
+
+              {/* Notification Permission UI */}
+              <Pressable
+                onPress={requestNotifPermission}
+                className={`w-full p-6 rounded-2xl border flex-row items-center justify-between ${notifPermission === 'granted' ? 'bg-slate-800/50 border-green-500/50' : 'bg-slate-900 border-slate-800'}`}
+              >
+                <View className="flex-row items-center flex-1">
+                  <View className={`w-12 h-12 rounded-full items-center justify-center mr-4 ${notifPermission === 'granted' ? 'bg-green-500/20' : 'bg-blue-500/20'}`}>
+                    <Feather name="bell" size={24} color={notifPermission === 'granted' ? '#22c55e' : '#3B82F6'} />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-white font-bold text-lg">通知を許可する</Text>
+                    <Text className="text-gray-400 text-sm">
+                      {notifPermission === 'granted' ? '通知は有効です' : '質問が届くように通知をオンにしましょう'}
+                    </Text>
+                  </View>
                 </View>
-                <View className="flex-row flex-wrap mb-10">
-                  {['開発者', 'デザイナー', 'その他'].map(v => <SelectChip key={v} label={v} value={v} field="jobType" />)}
-                </View>
-                <Pressable onPress={nextStep} className="bg-[#3B82F6] py-5 rounded-2xl items-center">
-                  <Text className="text-white font-bold text-lg">NEXT_PHASE</Text>
-                </Pressable>
-              </View>
-            )}
-            {step === 3 && (
-              <View>
-                <Text className="text-[#3B82F6] font-bold mb-2 tracking-widest">{'>{'} PHASE_03</Text>
-                <Text className="text-white text-3xl font-bold mb-8">CONFIG</Text>
-                <Pressable onPress={() => setShowPicker(true)} className="bg-gray-900 border-2 border-gray-700 rounded-xl p-4 mb-10">
-                  <Text className="text-white text-xl font-bold">通知時間: {formData.notifTime.getHours()}:{formData.notifTime.getMinutes().toString().padStart(2, '0')}</Text>
-                </Pressable>
-                {showPicker && (
-                  <DateTimePicker
-                    value={formData.notifTime} mode="time" display="spinner" is24Hour={true}
-                    onChange={(e, d) => { setShowPicker(Platform.OS === 'ios'); if (d) setFormData({ ...formData, notifTime: d }) }}
-                  />
+                {notifPermission === 'granted' ? (
+                  <Feather name="check" size={24} color="#22c55e" />
+                ) : (
+                  <Feather name="chevron-right" size={24} color="#475569" />
                 )}
-                <Pressable onPress={saveAndFinish} className="bg-green-600 py-5 rounded-2xl items-center">
-                  <Text className="text-white font-bold text-lg">INITIALIZE_SYSTEM</Text>
-                </Pressable>
-              </View>
+              </Pressable>
+            </View>
+          </View>
+        );
+      default: return null;
+    }
+  };
+
+  return (
+    <SafeAreaView className="flex-1 bg-[#0f172a]">
+      <StarryBackground />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+        <View className="flex-1 px-6 pt-4">
+          {step > 0 && <StepIndicator isAnimating={false} />}
+
+          <Animated.View style={{ flex: 1, transform: [{ translateX: slideAnim }] }}>
+            {renderContent()}
+          </Animated.View>
+
+
+          <View className="flex-row justify-between mb-8 mt-4">
+            {step > 0 ? (
+              <Pressable onPress={handleBack} className="bg-slate-800 p-4 rounded-full w-14 h-14 items-center justify-center">
+                <Feather name="arrow-left" size={24} color="white" />
+              </Pressable>
+            ) : <View style={{ width: 56 }} />}
+
+            {step < 6 ? (
+              <Pressable onPress={handleNext} className="bg-[#3B82F6] flex-row items-center px-8 h-14 rounded-full shadow-lg shadow-blue-500/30">
+                <Text className="text-white font-bold text-lg mr-2">次へ</Text>
+                <Feather name="arrow-right" size={20} color="white" />
+              </Pressable>
+            ) : (
+              <Pressable onPress={saveAndFinish} className="bg-green-500 flex-row items-center px-8 h-14 rounded-full shadow-lg shadow-green-500/30">
+                <Text className="text-white font-bold text-lg mr-2">開始する</Text>
+                <Feather name="check" size={20} color="white" />
+              </Pressable>
             )}
-          </ScrollView>
-        </Animated.View>
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

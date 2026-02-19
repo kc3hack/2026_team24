@@ -44,9 +44,9 @@ export async function scheduleNotification(time: string): Promise<void> {
             sound: true,
         },
         trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DAILY,
             hour,
             minute,
-            repeats: true,
         },
     });
 
