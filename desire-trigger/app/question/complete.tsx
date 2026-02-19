@@ -1,37 +1,88 @@
-import { View, Text, ActivityIndicator } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useEffect } from 'react';
 import { Feather } from '@expo/vector-icons';
+import { useMockStore } from '../../store/mockStore';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay
+} from 'react-native-reanimated';
 
 export default function QuestionCompleteScreen() {
-    const router = useRouter();
+  const router = useRouter();
+  const { resetQuestions } = useMockStore(); // 状態リセット用
 
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            // Navigate to chart in the main tabs
-            // We need to dismiss the modal stack first or navigate to root
-            router.dismissAll();
-            router.replace('/(tabs)/chart');
-        }, 2000);
+  // 🚀 逆ホワイトアウト（白から元の画面へ）
+  const fadeOutOpacity = useSharedValue(1);
 
-        return () => clearTimeout(timer);
-    }, []);
+  useEffect(() => {
+    // 1. 画面表示と同時に白から背景（黒）へフェードアウト
+    fadeOutOpacity.value = withTiming(0, { duration: 1200 });
 
-    return (
-        <SafeAreaView className="flex-1 bg-white items-center justify-center p-6">
-            <View className="items-center">
-                <View className="bg-green-100 w-20 h-20 rounded-full items-center justify-center mb-6">
-                    <Feather name="check" size={40} color="#22c55e" />
-                </View>
-                <Text className="text-2xl font-bold text-gray-800 mb-2 text-center">
-                    完了しました！
-                </Text>
-                <Text className="text-gray-500 text-center mb-8">
-                    分析結果を作成しています...
-                </Text>
-                <ActivityIndicator size="large" color="#a78bfa" />
-            </View>
-        </SafeAreaView>
-    );
+    // 2. 2.5秒後に【分析画面】へ直接遷移
+    const timer = setTimeout(async () => {
+      // 今日回答したことを記録
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const today = `${year}-${month}-${day}`;
+
+      await AsyncStorage.multiSet([
+        ['lastQuestionDate', today]
+      ]);
+
+      // 質問状態をリセット (次回は1問目から)
+      resetQuestions();
+
+      // 🚀 ここを修正：/(tabs) ではなく /(tabs)/chart に変更
+      // あなたのディレクトリ構成に合わせて /chart か /(tabs)/chart にしてください
+      router.replace('/question/result-flow');
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: fadeOutOpacity.value,
+  }));
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View className="items-center">
+        {/* 成功インジケータ */}
+        <View className="bg-green-500/10 w-24 h-24 rounded-full items-center justify-center mb-8 border border-green-500/20">
+          <Feather name="check" size={48} color="#39FF14" />
+        </View>
+
+        <Text className="text-gray-500 text-[10px] tracking-[0.4em] uppercase mb-2">Sync Sequence</Text>
+        <Text className="text-white text-3xl font-bold mb-4 text-center">同期完了</Text>
+
+        <Text className="text-gray-500 text-center mb-10 text-sm leading-relaxed px-10">
+          ニューラルデータの解析が終了しました。{"\n"}分析プロセッサを起動します。
+        </Text>
+
+        <ActivityIndicator size="small" color="#3B82F6" />
+      </View>
+
+      {/* 🚀 前の画面のホワイトアウトを引き継ぐレイヤー */}
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#FFF' }, overlayStyle]}
+      />
+    </SafeAreaView>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#121212', // 帰還先の背景色
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+});
