@@ -1,7 +1,15 @@
+import { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { useSettingsStore } from '../../store/settingsStore';
 
 export default function TabLayout() {
+  const loadSettings = useSettingsStore((state) => state.loadSettings);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
   return (
     <Tabs screenOptions={{
       headerShown: false,
