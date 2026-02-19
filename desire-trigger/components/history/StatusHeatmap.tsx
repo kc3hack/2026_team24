@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { HistoryLog } from '../../types';
-import { METRIC_COLORS } from '../../data/mock/historyData';
+import { METRIC_COLORS } from '../../lib/constants';
 
 interface StatusHeatmapProps {
     data: HistoryLog[];
@@ -73,7 +73,8 @@ export default function StatusHeatmap({ data, displayMonth, onDayPress, selected
                         primaryMetric: 'idle' as const,
                         score: 0,
                         metrics: {},
-                        tasksCompleted: 0
+                        tasksCompleted: 0,
+                        taskList: []
                     };
 
                     return (

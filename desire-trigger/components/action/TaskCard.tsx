@@ -14,7 +14,7 @@ interface TaskCardProps {
     animatedStyle?: any;
 }
 
-const getCompletionLabel = (mode: string, taskId: string) => {
+const getCompletionLabel = (mode: string | undefined, taskId: string) => {
     return '完了';
 };
 
@@ -34,14 +34,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onCommit, ani
         }
     };
 
-    const getModeLabel = (mode: string) => {
+    const getModeLabel = (mode: string | undefined) => {
         switch (mode) {
             case 'EXPLORATION': return '探索';
             case 'IMMERSION': return '没頭';
             case 'ORGANIZATION': return '整理';
             case 'CONTRIBUTION': return '貢献';
             case 'REST': return '休息';
-            default: return mode;
+            default: return mode || 'TRIAL';
         }
     };
 

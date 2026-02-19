@@ -10,9 +10,10 @@ const SWIPE_THRESHOLD = 120;
 interface TaskStackProps {
     tasks: Task[];
     onTaskPress: (task: Task) => void;
+    onCommit: (taskId: string) => void;
 }
 
-export const TaskStack: React.FC<TaskStackProps> = ({ tasks, onTaskPress }) => {
+export const TaskStack: React.FC<TaskStackProps> = ({ tasks, onTaskPress, onCommit }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const pan = useRef(new Animated.ValueXY()).current;
 
@@ -101,6 +102,7 @@ export const TaskStack: React.FC<TaskStackProps> = ({ tasks, onTaskPress }) => {
                         <TaskCard
                             task={task}
                             onPress={() => onTaskPress(task)}
+                            onCommit={onCommit}
                         />
                     </Animated.View>
                 );
