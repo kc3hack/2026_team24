@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from '
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { Task } from '../../types';
+import { CARD_WIDTH, CARD_HEIGHT } from '../../constants/Layout';
 
 interface TaskCardProps {
     task: Task;
@@ -11,30 +12,27 @@ interface TaskCardProps {
     animatedStyle?: any;
 }
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = width * 0.75; // 75% of screen width
-
 export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, animatedStyle }) => {
     // Style based on levelType
-    const getBorderColor = () => {
+    const getThemeColor = () => {
         if (task.isCompleted || task.status === 'applied') return Colors.textDim;
         switch (task.levelType) {
-            case 'quick': return Colors.primary; // Cyan
-            case 'core': return Colors.secondary; // Purple
-            case 'deep': return Colors.warning; // Yellow
-            default: return Colors.primary;
+            case 'quick': return '#00F0FF'; // Cyan
+            case 'core': return '#FF0055';  // Magenta
+            case 'deep': return '#FFD700';  // Yellow
+            default: return '#00F0FF';
         }
     };
 
-    const borderColor = getBorderColor();
+    const themeColor = getThemeColor();
     const isCompleted = task.isCompleted || task.status === 'applied';
 
     return (
-        <Animated.View style={[styles.wrapper, animatedStyle, { width: CARD_WIDTH }]}>
+        <Animated.View style={[styles.wrapper, animatedStyle, { width: CARD_WIDTH, height: CARD_HEIGHT }]}>
             <TouchableOpacity
                 style={[
                     styles.container,
-                    { borderColor: borderColor },
+                    { borderColor: themeColor },
                     isCompleted && styles.completedContainer
                 ]}
                 onPress={onPress}
@@ -43,38 +41,38 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, animatedStyle
             >
                 {/* Header: Category & Level */}
                 <View style={styles.header}>
-                    <View style={[styles.badge, { backgroundColor: borderColor + '40' }]}>
-                        <Text style={[styles.badgeText, { color: borderColor }]}>
+                    <View style={[styles.badge, { backgroundColor: themeColor + '20', borderColor: themeColor }]}>
+                        <Text style={[styles.badgeText, { color: themeColor }]}>
                             {task.category}
                         </Text>
                     </View>
-                    <Text style={[styles.level, { color: borderColor }]}>
+                    <Text style={[styles.level, { color: themeColor }]}>
                         {task.levelType?.toUpperCase()}
                     </Text>
                 </View>
 
                 {/* Title */}
                 <Text
-                    style={[styles.title, isCompleted && styles.completedText]}
+                    style={[styles.title, { color: isCompleted ? Colors.textDim : themeColor }]}
                     numberOfLines={2}
                 >
                     {task.title}
                 </Text>
 
-
-
                 {/* Footer: Buff & Timer */}
                 <View style={styles.footer}>
                     <View style={styles.buffContainer}>
-                        <Ionicons name="arrow-up-circle" size={16} color={isCompleted ? Colors.textDim : Colors.success} />
-                        <Text style={[styles.buffText, isCompleted && { color: Colors.textDim }]}>
-                            {task.buff_metric.toUpperCase()} +{task.buffValue}
+                        <Ionicons name="arrow-up-circle" size={16} color={isCompleted ? Colors.textDim : themeColor} />
+                        <Text style={[styles.buffText, { color: isCompleted ? Colors.textDim : themeColor }]}>
+                            {(task.buff_metric?.toUpperCase() || 'BUFF')} +{task.buffValue}
                         </Text>
                     </View>
 
                     <View style={styles.timerContainer}>
-                        <Ionicons name="time-outline" size={16} color={Colors.textDim} />
-                        <Text style={styles.timerText}>24:00:00</Text>
+                        <Ionicons name="time-outline" size={16} color={isCompleted ? Colors.textDim : themeColor} />
+                        <Text style={[styles.timerText, { color: isCompleted ? Colors.textDim : themeColor }]}>
+                            24:00:00
+                        </Text>
                     </View>
                 </View>
 
@@ -94,18 +92,19 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, animatedStyle
 const styles = StyleSheet.create({
     wrapper: {
         // Wrapper for Animation
-        marginHorizontal: 10,
+        // No margin needed here as positioning is handled by parent container logic
+        alignSelf: 'center',
     },
     container: {
-        backgroundColor: 'rgba(18, 18, 42, 0.9)', // Higher opacity for main card
+        flex: 1,
+        backgroundColor: 'rgba(10, 10, 26, 0.95)', // Darker background for neon contrast
         borderRadius: 16,
         borderWidth: 2,
         padding: 24,
-        height: 320, // Fixed height for carousel uniformity
         justifyContent: 'space-between',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.5,
+        shadowOpacity: 0.6,
         shadowRadius: 20,
         elevation: 10,
     },
@@ -122,34 +121,31 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 4,
+        borderWidth: 1,
     },
     badgeText: {
         fontSize: 10,
         fontWeight: 'bold',
+        letterSpacing: 1,
     },
     level: {
         fontSize: 14,
         fontFamily: 'monospace',
         fontWeight: 'bold',
-        letterSpacing: 1,
+        letterSpacing: 2,
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 1,
     },
     title: {
-        color: Colors.text,
-        fontSize: 24,
-        fontWeight: 'bold',
-        lineHeight: 32,
+        fontSize: 28, // Large title for vertical card
+        fontWeight: '900',
+        lineHeight: 36,
+        letterSpacing: 1,
         marginTop: 16,
-    },
-    description: {
-        color: Colors.textDim,
-        fontSize: 14,
-        lineHeight: 20,
-        marginTop: 8,
-        flex: 1,
-    },
-    completedText: {
-        color: Colors.textDim,
-        textDecorationLine: 'line-through',
+        textShadowColor: 'rgba(0, 0, 0, 0.8)',
+        textShadowOffset: { width: 2, height: 2 },
+        textShadowRadius: 4,
     },
     footer: {
         flexDirection: 'row',
@@ -166,10 +162,10 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     buffText: {
-        color: Colors.success,
         fontSize: 14,
         fontWeight: 'bold',
         fontFamily: 'monospace',
+        letterSpacing: 1,
     },
     timerContainer: {
         flexDirection: 'row',
@@ -177,15 +173,15 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     timerText: {
-        color: Colors.textDim,
         fontSize: 12,
         fontFamily: 'monospace',
+        letterSpacing: 1,
     },
     overlay: {
         ...StyleSheet.absoluteFillObject,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
         borderRadius: 14,
     },
     stamp: {
@@ -195,7 +191,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         borderRadius: 8,
         transform: [{ rotate: '-15deg' }],
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
     },
     stampText: {
         color: Colors.success,

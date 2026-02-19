@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, SafeAreaView, Text, StatusBar } from 'react-native';
+import { View, StyleSheet, Text, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { TaskCarousel } from '../../components/action/TaskCarousel';
 import { TaskDetailModal } from '../../components/action/TaskDetailModal';
@@ -16,7 +17,7 @@ export default function ActionScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             <StatusBar barStyle="light-content" />
 
             <View style={styles.header}>
@@ -68,5 +69,7 @@ const styles = StyleSheet.create({
     carouselContainer: {
         flex: 1,
         justifyContent: 'center',
+        alignItems: 'center',
+        // Pure centering for Card Stack
     },
 });
