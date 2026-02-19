@@ -3,30 +3,30 @@ import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Image } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 // 🚀 Line を追加
 import Svg, { Polygon, G, Defs, RadialGradient, Stop, Path, Circle, Rect, Line } from 'react-native-svg';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedProps, 
-  useAnimatedStyle, 
-  withTiming, 
+import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  useAnimatedStyle,
+  withTiming,
   withSpring,
-  interpolate, 
+  interpolate,
   SharedValue,
   withDelay,
   withSequence,
-  withRepeat, 
+  withRepeat,
   Easing,
   interpolateColor,
   runOnJS,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import StarryBackground from '../../components/ui/StarryBackground';
 
 const { width, height } = Dimensions.get('window');
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedG = Animated.createAnimatedComponent(G);
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
-const AnimatedLine = Animated.createAnimatedComponent(Line); // 🚀 流れ星用
+
 
 let KC3_LOGO_IMG;
 try {
@@ -38,8 +38,8 @@ try {
 type Mission = { cat: string; title: string; color: string; };
 type FlowPhase = 'analysis' | 'moving' | 'selecting' | 'filling' | 'completed';
 
-const SPACE_BG = '#020617'; 
-const RADAR_THEME = '#00E5FF'; 
+const SPACE_BG = '#020617';
+const RADAR_THEME = '#00E5FF';
 const RADAR_GRID = 'rgba(255, 255, 255, 0.1)';
 const POLYGON_FILL = 'rgba(255, 255, 255, 0.05)';
 
@@ -52,56 +52,10 @@ const CARD_Y_POSITIONS = [BASE_Y, BASE_Y + CARD_HEIGHT + CARD_GAP, BASE_Y + (CAR
 // 六角形の頂点計算
 const getVertex = (radius: number, index: number) => {
   'worklet';
-  const angle = (Math.PI * 2 * index) / 6 - Math.PI / 2; 
+  const angle = (Math.PI * 2 * index) / 6 - Math.PI / 2;
   return { x: 200 + radius * Math.cos(angle), y: 200 + radius * Math.sin(angle) };
 };
 
-// 🌟 背景の瞬く星
-const TwinklingStar = ({ x, y, size }: { x: number, y: number, size: number }) => {
-  const opacity = useSharedValue(Math.random() * 0.5 + 0.5);
-  useEffect(() => {
-    opacity.value = withRepeat(withSequence(
-      withTiming(1, { duration: 1000 + Math.random() * 1000 }), 
-      withTiming(0.2, { duration: 1000 + Math.random() * 1000 })
-    ), -1, true);
-  }, []);
-  const animatedProps = useAnimatedProps(() => ({ opacity: opacity.value }));
-  return <AnimatedCircle cx={x} cy={y} r={size} fill="#FFF" animatedProps={animatedProps} />;
-};
-
-// 🌠 流れ星コンポーネント（一定確率で降る）
-const ShootingStar = ({ delay, startX, startY }: { delay: number, startX: number, startY: number }) => {
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    // 4秒周期。delayでスタート時間をずらすことでランダムに降っているように見せる
-    progress.value = withDelay(
-      delay,
-      withRepeat(withTiming(1, { duration: 4000, easing: Easing.linear }), -1, false)
-    );
-  }, []);
-
-  const animatedProps = useAnimatedProps(() => {
-    // 0〜0.15 の短い間だけ移動する
-    const p = interpolate(progress.value, [0, 0.15], [0, 1], 'clamp');
-    
-    const currentX = startX - p * width * 1.5;
-    const currentY = startY + p * width * 1.5;
-    const tailLength = interpolate(p, [0, 0.5, 1], [0, 120, 0], 'clamp');
-
-    return {
-      x1: currentX,
-      y1: currentY,
-      x2: currentX + tailLength,
-      y2: currentY - tailLength,
-      opacity: interpolate(p, [0, 0.1, 0.9, 1], [0, 1, 1, 0], 'clamp'),
-    };
-  });
-
-  return (
-    <AnimatedLine stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="round" animatedProps={animatedProps} />
-  );
-};
 
 // ✨ 星が直接カードの上下端へ飛んでいく
 const StellarPoint = ({ x, y, index, moveProgress }: { x: number, y: number, index: number, moveProgress: SharedValue<number> }) => {
@@ -120,11 +74,11 @@ const StellarPoint = ({ x, y, index, moveProgress }: { x: number, y: number, ind
 
     const currentX = interpolate(p, [0, 1], [x, targetX], 'clamp');
     const currentY = interpolate(p, [0, 1], [y, targetY], 'clamp');
-    const currentScale = scale.value * interpolate(p, [0, 0.8, 1], [1, 1.3, 1], 'clamp'); 
+    const currentScale = scale.value * interpolate(p, [0, 0.8, 1], [1, 1.3, 1], 'clamp');
 
     return {
       transform: [{ translateX: currentX }, { translateY: currentY }, { scale: currentScale }],
-      opacity: interpolate(p, [0.8, 1], [1, 0], 'clamp') 
+      opacity: interpolate(p, [0.8, 1], [1, 0], 'clamp')
     };
   });
 
@@ -140,18 +94,18 @@ const StellarPoint = ({ x, y, index, moveProgress }: { x: number, y: number, ind
 export default function ResultFlowScreen() {
   const router = useRouter();
   const [phase, setPhase] = useState<FlowPhase>('analysis');
-  
+
   const chartEnter = useSharedValue(0);
   const lineDrawProgress = useSharedValue(0); // 🚀 復活: チャートの線を描く
-  
-  const moveProgress = useSharedValue(0); 
-  const spinProgress = useSharedValue(0); 
-  const colorProgress = useSharedValue(0); 
-  const fillProgress = useSharedValue(0); 
+
+  const moveProgress = useSharedValue(0);
+  const spinProgress = useSharedValue(0);
+  const colorProgress = useSharedValue(0);
+  const fillProgress = useSharedValue(0);
 
   const chartData = [
-    { label: '探索', score: 70 }, { label: '没頭', score: 90 }, { label: '整理', score: 50 }, 
-    { label: '貢献', score: 40 }, { label: '元気', score: 85 }, { label: 'フリックの強さ', score: 88 } 
+    { label: '探索', score: 70 }, { label: '没頭', score: 90 }, { label: '整理', score: 50 },
+    { label: '貢献', score: 40 }, { label: '元気', score: 85 }, { label: 'フリックの強さ', score: 88 }
   ];
 
   const missions = useMemo((): Mission[] => [
@@ -164,7 +118,7 @@ export default function ResultFlowScreen() {
     // 🚀 初期表示アニメーション（線が繋がる）
     chartEnter.value = withTiming(1, { duration: 1500, easing: Easing.out(Easing.exp) });
     lineDrawProgress.value = withDelay(600, withTiming(1, { duration: 1500, easing: Easing.out(Easing.cubic) }));
-    
+
     // 光の無限周回はバックグラウンドで走らせておく
     spinProgress.value = withRepeat(withTiming(1, { duration: 500, easing: Easing.linear }), -1, false);
   }, []);
@@ -172,18 +126,18 @@ export default function ResultFlowScreen() {
   const handleStart = () => {
     setPhase('moving');
     moveProgress.value = withTiming(1, { duration: 800, easing: Easing.inOut(Easing.cubic) }, () => {
-      runOnJS(setPhase)('selecting'); 
+      runOnJS(setPhase)('selecting');
     });
     colorProgress.value = withDelay(800, withTiming(1, { duration: 1000 }));
   };
 
   const handleSelectOption = (option: string) => {
-    console.log("Selected timing:", option); 
+    console.log("Selected timing:", option);
     setPhase('filling');
-    
+
     // 1.5秒間 "GENERATING..." を見せて光を回し続けたあと、塗りつぶし
     fillProgress.value = withDelay(
-      1500, 
+      1500,
       withTiming(1, { duration: 800, easing: Easing.out(Easing.exp) }, () => {
         runOnJS(setPhase)('completed');
       })
@@ -204,12 +158,12 @@ export default function ResultFlowScreen() {
       const p = getVertex(145 * (d.score / 100) * chartEnter.value, i);
       return i === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`;
     }).join(' ');
-    
+
     const strokeDashoffset = interpolate(lineDrawProgress.value, [0, 1], [2000, 0]);
-    
-    return { 
-      d: `${points}Z`, 
-      stroke: "#FFFFFF", 
+
+    return {
+      d: `${points}Z`,
+      stroke: "#FFFFFF",
       strokeWidth: 1,
       strokeDasharray: 2000,
       strokeDashoffset,
@@ -219,16 +173,7 @@ export default function ResultFlowScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={StyleSheet.absoluteFill}>
-        <Svg height={height} width={width}>
-          {Array.from({ length: 50 }).map((_, i) => (
-            <TwinklingStar key={`star-${i}`} x={Math.random()*width} y={Math.random()*height} size={Math.random()*1.5+0.5} />
-          ))}
-          {/* 🚀 流れ星を追加（時間差でランダムに降る） */}
-          <ShootingStar delay={1000} startX={width * 0.8} startY={-100} />
-          <ShootingStar delay={2500} startX={width * 1.2} startY={height * 0.2} />
-          <ShootingStar delay={4000} startX={width * 0.5} startY={-200} />
-          <ShootingStar delay={5500} startX={width * 1.5} startY={height * 0.4} />
-        </Svg>
+        <StarryBackground />
       </View>
 
       <View style={styles.contentWrapper}>
@@ -240,14 +185,14 @@ export default function ResultFlowScreen() {
               <Defs>
                 <RadialGradient id="vertexGlow" cx="50%" cy="50%" r="50%"><Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" /><Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" /></RadialGradient>
               </Defs>
-              
+
               <AnimatedG animatedProps={chartFadeOutProps}>
                 {[150, 100, 50].map(r => (
                   <Polygon key={`grid-${r}`} points={[0, 1, 2, 3, 4, 5].map(i => { const p = getVertex(r, i); return `${p.x},${p.y}`; }).join(' ')} stroke={RADAR_GRID} strokeWidth="1" strokeDasharray="4,4" fill="transparent" />
                 ))}
                 <AnimatedPath animatedProps={polygonProps} fill={POLYGON_FILL} strokeLinejoin="round" />
               </AnimatedG>
-              
+
               {chartData.map((d, i) => (
                 <StellarPoint key={`point-${i}`} x={getVertex(145 * (d.score / 100), i).x} y={getVertex(145 * (d.score / 100), i).y} index={i} moveProgress={moveProgress} />
               ))}
@@ -255,7 +200,7 @@ export default function ResultFlowScreen() {
 
             <Animated.View style={[StyleSheet.absoluteFill, chartFadeOutStyle]} pointerEvents="none">
               {chartData.map((d, i) => {
-                const rad = ( (i * 360) / 6 - 90 ) * Math.PI / 180;
+                const rad = ((i * 360) / 6 - 90) * Math.PI / 180;
                 const x = 200 + 175 * Math.cos(rad); const y = 200 + 175 * Math.sin(rad);
                 return <View key={`label-${i}`} style={[styles.labelWrapper, { left: x - 40, top: y - 20 }]}><Text style={styles.labelText}>{d.label}</Text><Text style={styles.labelScore}>{d.score}</Text></View>;
               })}
@@ -331,9 +276,9 @@ const CyberCard = ({ index, item, moveProgress, spinProgress, colorProgress, fil
 
   const fillStyle = useAnimatedStyle(() => {
     return {
-      opacity: interpolate(fillProgress.value, [0, 0.2, 1], [0, 0.8, 0.15]), 
+      opacity: interpolate(fillProgress.value, [0, 0.2, 1], [0, 0.8, 0.15]),
       backgroundColor: item.color,
-      transform: [{ scale: interpolate(fillProgress.value, [0, 0.2, 1], [0.9, 1.05, 1]) }] 
+      transform: [{ scale: interpolate(fillProgress.value, [0, 0.2, 1], [0.9, 1.05, 1]) }]
     };
   });
 
@@ -348,7 +293,7 @@ const CyberCard = ({ index, item, moveProgress, spinProgress, colorProgress, fil
     return {
       opacity: fillProgress.value,
       borderColor: item.color,
-      borderWidth: 2, 
+      borderWidth: 2,
       backgroundColor: 'rgba(0,0,0,0.5)'
     };
   });
@@ -381,24 +326,24 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', marginBottom: 10 },
   headerTitle: { color: RADAR_THEME, fontSize: 14, fontWeight: '900', letterSpacing: 5 },
   displayArea: { width: width, flex: 1, justifyContent: 'center', alignItems: 'center' },
-  chartContainer: { position: 'absolute', top: 20, width: 400, height: 500, alignItems: 'center' }, 
+  chartContainer: { position: 'absolute', top: 20, width: 400, height: 500, alignItems: 'center' },
   labelWrapper: { position: 'absolute', alignItems: 'center', width: 80 },
   labelText: { color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' },
   labelScore: { color: RADAR_THEME, fontSize: 16, fontWeight: '900', fontFamily: 'monospace' },
-  
+
   cardOverlay: { position: 'absolute', top: 20, width: 400, height: 500, alignItems: 'center' },
   cardContainer: { position: 'absolute', width: CARD_WIDTH, height: CARD_HEIGHT },
   cardContentBox: { ...StyleSheet.absoluteFillObject, borderRadius: 16 },
   cardInfo: { flex: 1, padding: 25, justifyContent: 'center' },
   cardCat: { fontSize: 11, fontWeight: '900', letterSpacing: 3, marginBottom: 8 },
-  cardTitle: { color: '#FFF', fontSize: 18, fontWeight: 'bold', textShadowColor: 'rgba(255,255,255,0.5)', textShadowOffset: {width: 0, height: 0}, textShadowRadius: 15 },
-  
+  cardTitle: { color: '#FFF', fontSize: 18, fontWeight: 'bold', textShadowColor: 'rgba(255,255,255,0.5)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 15 },
+
   footer: { width: '100%', alignItems: 'center', paddingBottom: 40, height: 180, justifyContent: 'center' },
   actionButton: { width: width * 0.7, paddingVertical: 18, borderRadius: 40, alignItems: 'center', backgroundColor: '#FFF' },
   primaryBtn: { backgroundColor: '#FFF', borderColor: '#FFF' },
   secondaryBtn: { backgroundColor: 'transparent', borderColor: 'transparent' },
   buttonText: { fontWeight: '900', letterSpacing: 2, fontSize: 14, fontFamily: 'monospace', color: '#000' },
-  
+
   selectionContainer: { width: '100%', alignItems: 'center', paddingHorizontal: 20 },
   questionText: { color: '#FFF', fontSize: 11, fontWeight: 'bold', marginBottom: 20, textAlign: 'center', textShadowColor: RADAR_THEME, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 8, letterSpacing: 1 },
   optionsWrapper: { flexDirection: 'row', justifyContent: 'space-between', width: '100%' },
