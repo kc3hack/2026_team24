@@ -40,7 +40,7 @@ export default function RootLayout() {
         {/* 🚀 モーダル画面：これらはiOS標準のポップアップ動作を維持 */}
         <Stack.Screen
           name="question"
-          options={{ presentation: 'fullScreenModal' }}
+          options={{ animation: 'fade' }}
         />
         <Stack.Screen
           name="reflection"

@@ -68,6 +68,9 @@ export default function QuestionAnswerScreen() {
   const rotate = useSharedValue(0);
   const warpFactor = useSharedValue(0);
   const whiteoutOpacity = useSharedValue(0);
+  
+  // 🚀 追加：フェードイン用共有値
+  const fadeInOpacity = useSharedValue(1);
 
   // インパクト共有値
   const ringScale = useSharedValue(0.5);
@@ -81,6 +84,11 @@ export default function QuestionAnswerScreen() {
   const scoreTranslateY = useSharedValue(0);
 
   const stars = useMemo(() => Array.from({ length: 70 }), []);
+
+  // 🚀 追加：マウント時にフェードインを開始
+  useEffect(() => {
+    fadeInOpacity.value = withTiming(0, { duration: 1000, easing: Easing.out(Easing.quad) });
+  }, []);
 
   const triggerImpact = (velocity: number, direction: 'YES' | 'NO') => {
     const speed = Math.abs(velocity);
@@ -117,7 +125,7 @@ export default function QuestionAnswerScreen() {
       if (currentQuestionIndex === questions.length - 1) {
         warpFactor.value = withTiming(1, { duration: 800 });
         whiteoutOpacity.value = withDelay(400, withTiming(1, { duration: 500 }));
-        setTimeout(() => { router.replace('/question/complete'); }, 1000);
+        setTimeout(() => { router.replace('/question/result-flow'); }, 1000);
       } else { nextQuestion(); }
     }
   };
@@ -155,6 +163,11 @@ export default function QuestionAnswerScreen() {
     opacity: scoreOpacity.value,
     transform: [{ translateY: scoreTranslateY.value }, { scale: interpolate(scoreOpacity.value, [0, 1], [0.8, 1.2], 'clamp') }],
   }));
+  
+  // 🚀 追加：フェードインオーバースタイル
+  const fadeInOverlayStyle = useAnimatedStyle(() => ({
+    opacity: fadeInOpacity.value,
+  }));
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -191,7 +204,11 @@ export default function QuestionAnswerScreen() {
           </GestureDetector>
         </View>
 
+        {/* 🚀 出口のホワイトアウト演出用レイヤー */}
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FFF', opacity: whiteoutOpacity }]} />
+
+        {/* 🚀 追加：入口のフェードイン用レイヤー（最前面に配置） */}
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#FFF' }, fadeInOverlayStyle]} />
       </SafeAreaView>
     </GestureHandlerRootView>
   );

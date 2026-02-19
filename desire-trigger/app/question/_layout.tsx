@@ -9,6 +9,7 @@ export default function QuestionLayout() {
           headerShown: false,
           // 🚀 遷移をフェードに変更（スライドを無効化）
           animation: 'fade', 
+          animationDuration: 300,
           contentStyle: { backgroundColor: '#121212' },
         }}
       >

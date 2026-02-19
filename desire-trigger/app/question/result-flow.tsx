@@ -27,14 +27,6 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedG = Animated.createAnimatedComponent(G);
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
-
-let KC3_LOGO_IMG;
-try {
-  KC3_LOGO_IMG = require('../../assets/images/KC3.jpg');
-} catch (e) {
-  KC3_LOGO_IMG = null;
-}
-
 type Mission = { cat: string; title: string; color: string; };
 type FlowPhase = 'analysis' | 'moving' | 'selecting' | 'filling' | 'completed';
 
@@ -61,7 +53,7 @@ const getVertex = (radius: number, index: number) => {
 const StellarPoint = ({ x, y, index, moveProgress }: { x: number, y: number, index: number, moveProgress: SharedValue<number> }) => {
   const scale = useSharedValue(0);
   useEffect(() => {
-    scale.value = withDelay(index * 50, withSpring(1, { damping: 12, stiffness: 120 }));
+    scale.value = withDelay(index * 200, withSpring(1, { damping: 12, stiffness: 120 }));
   }, []);
 
   const animatedProps = useAnimatedProps(() => {
@@ -100,10 +92,10 @@ export default function ResultFlowScreen() {
   const handleComplete = async () => {
     try {
       await AsyncStorage.setItem('hasDiagnosedEver', 'true');
-      router.replace('/(tabs)');
+      router.replace('/home');
     } catch (e) {
       console.error("Failed to save state", e);
-      router.replace('/(tabs)');
+      router.replace('/home');
     }
   };
 
@@ -129,8 +121,8 @@ export default function ResultFlowScreen() {
 
   useEffect(() => {
     // 🚀 初期表示アニメーション（線が繋がる）
-    chartEnter.value = withTiming(1, { duration: 1500, easing: Easing.out(Easing.exp) });
-    lineDrawProgress.value = withDelay(600, withTiming(1, { duration: 1500, easing: Easing.out(Easing.cubic) }));
+    chartEnter.value = withTiming(1, { duration: 2000, easing: Easing.out(Easing.exp) });
+    lineDrawProgress.value = withDelay(1000, withTiming(1, { duration: 8000, easing: Easing.out(Easing.cubic) }));
 
     // 光の無限周回はバックグラウンドで走らせておく
     spinProgress.value = withRepeat(withTiming(1, { duration: 500, easing: Easing.linear }), -1, false);
