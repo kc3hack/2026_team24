@@ -49,10 +49,10 @@ const CARD_GAP = 20;
 const BASE_Y = 20
 const CARD_Y_POSITIONS = [BASE_Y, BASE_Y + CARD_HEIGHT + CARD_GAP, BASE_Y + (CARD_HEIGHT + CARD_GAP) * 2];
 
-// 六角形の頂点計算
+// 五角形の頂点計算
 const getVertex = (radius: number, index: number) => {
   'worklet';
-  const angle = (Math.PI * 2 * index) / 6 - Math.PI / 2;
+  const angle = (Math.PI * 2 * index) / 5 - Math.PI / 2;
   return { x: 200 + radius * Math.cos(angle), y: 200 + radius * Math.sin(angle) };
 };
 
@@ -91,9 +91,22 @@ const StellarPoint = ({ x, y, index, moveProgress }: { x: number, y: number, ind
   );
 };
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 export default function ResultFlowScreen() {
   const router = useRouter();
   const [phase, setPhase] = useState<FlowPhase>('analysis');
+
+  const handleComplete = async () => {
+    try {
+      await AsyncStorage.setItem('hasDiagnosedEver', 'true');
+      router.replace('/(tabs)');
+    } catch (e) {
+      console.error("Failed to save state", e);
+      router.replace('/(tabs)');
+    }
+  };
+
 
   const chartEnter = useSharedValue(0);
   const lineDrawProgress = useSharedValue(0); // 🚀 復活: チャートの線を描く
@@ -105,7 +118,7 @@ export default function ResultFlowScreen() {
 
   const chartData = [
     { label: '探索', score: 70 }, { label: '没頭', score: 90 }, { label: '整理', score: 50 },
-    { label: '貢献', score: 40 }, { label: '元気', score: 85 }, { label: 'フリックの強さ', score: 88 }
+    { label: '貢献', score: 40 }, { label: '元気', score: 85 }
   ];
 
   const missions = useMemo((): Mission[] => [
@@ -188,7 +201,7 @@ export default function ResultFlowScreen() {
 
               <AnimatedG animatedProps={chartFadeOutProps}>
                 {[150, 100, 50].map(r => (
-                  <Polygon key={`grid-${r}`} points={[0, 1, 2, 3, 4, 5].map(i => { const p = getVertex(r, i); return `${p.x},${p.y}`; }).join(' ')} stroke={RADAR_GRID} strokeWidth="1" strokeDasharray="4,4" fill="transparent" />
+                  <Polygon key={`grid-${r}`} points={[0, 1, 2, 3, 4].map(i => { const p = getVertex(r, i); return `${p.x},${p.y}`; }).join(' ')} stroke={RADAR_GRID} strokeWidth="1" strokeDasharray="4,4" fill="transparent" />
                 ))}
                 <AnimatedPath animatedProps={polygonProps} fill={POLYGON_FILL} strokeLinejoin="round" />
               </AnimatedG>
@@ -200,7 +213,7 @@ export default function ResultFlowScreen() {
 
             <Animated.View style={[StyleSheet.absoluteFill, chartFadeOutStyle]} pointerEvents="none">
               {chartData.map((d, i) => {
-                const rad = ((i * 360) / 6 - 90) * Math.PI / 180;
+                const rad = ((i * 360) / 5 - 90) * Math.PI / 180;
                 const x = 200 + 175 * Math.cos(rad); const y = 200 + 175 * Math.sin(rad);
                 return <View key={`label-${i}`} style={[styles.labelWrapper, { left: x - 40, top: y - 20 }]}><Text style={styles.labelText}>{d.label}</Text><Text style={styles.labelScore}>{d.score}</Text></View>;
               })}
@@ -245,7 +258,7 @@ export default function ResultFlowScreen() {
           )}
 
           {phase === 'completed' && (
-            <TouchableOpacity onPress={() => router.replace('/(tabs)/history')} style={styles.actionButton}>
+            <TouchableOpacity onPress={handleComplete} style={styles.actionButton}>
               <Text style={[styles.buttonText, { color: '#000' }]}>START MISSIONS</Text>
             </TouchableOpacity>
           )}
