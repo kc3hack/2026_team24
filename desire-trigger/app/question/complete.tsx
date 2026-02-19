@@ -33,8 +33,7 @@ export default function QuestionCompleteScreen() {
       const today = `${year}-${month}-${day}`;
 
       await AsyncStorage.multiSet([
-        ['lastQuestionDate', today],
-        ['dailyMissionCompleted', 'true']
+        ['lastQuestionDate', today]
       ]);
 
       // 質問状態をリセット (次回は1問目から)
