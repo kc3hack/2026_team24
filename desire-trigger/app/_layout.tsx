@@ -16,14 +16,44 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="setup" options={{ headerShown: false }} />
-        <Stack.Screen name="question" options={{ presentation: 'fullScreenModal', headerShown: false }} />
-        <Stack.Screen name="reflection" options={{ presentation: 'modal', headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+      {/* 全画面共通でヘッダーを非表示に設定 */}
+      <Stack screenOptions={{ headerShown: false }}>
+        
+        {/* 🚀 スタート画面関連：スライドを無効化し、フェードアニメーションを適用 */}
+        <Stack.Screen 
+          name="index" 
+          options={{ animation: 'fade' }} 
+        />
+        <Stack.Screen 
+          name="welcome" 
+          options={{ animation: 'fade' }} 
+        />
+        <Stack.Screen 
+          name="(tabs)" 
+          options={{ animation: 'fade' }} 
+        />
+        <Stack.Screen 
+          name="setup" 
+          options={{ animation: 'fade' }} 
+        />
+        
+        {/* 🚀 モーダル画面：これらはiOS標準のポップアップ動作を維持 */}
+        <Stack.Screen 
+          name="question" 
+          options={{ presentation: 'fullScreenModal' }} 
+        />
+        <Stack.Screen 
+          name="reflection" 
+          options={{ presentation: 'modal' }} 
+        />
+        <Stack.Screen 
+          name="modal" 
+          options={{ presentation: 'modal', title: 'Modal' }} 
+        />
       </Stack>
-      <StatusBar style="auto" />
+      
+      {/* 宇宙背景に合わせて時計やアイコンを白に固定 */}
+      <StatusBar style="light" />
     </ThemeProvider>
   );
 }
