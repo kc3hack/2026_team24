@@ -19,16 +19,16 @@ const { width, height } = Dimensions.get('window');
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 // --- ⚙️ システム設定 ---
-const BG_DARK = '#000208'; 
+const BG_DARK = '#000208';
 const THEME_CYAN = '#00E5FF';
 const THEME_PURPLE = '#7C5CFF';
 const THEME_GREEN = '#39FF14';
 
 const PORTAL_SIZE = Math.min(width, height) * 1.0; // もやの範囲を最大化
 const PORTAL_CENTER_X = width / 2;
-const PORTAL_CENTER_Y = height * 0.50; 
+const PORTAL_CENTER_Y = height * 0.50;
 
-const STAR_COUNT = 150; 
+const STAR_COUNT = 150;
 const MAX_STAR_RADIUS = Math.sqrt(width * width + height * height) * 0.8; // 円形範囲
 
 const generateStars = () => {
@@ -63,7 +63,7 @@ export default function SupernovaWelcome() {
     if (targetPath) {
       const timer = setTimeout(() => {
         router.replace(targetPath as any);
-      }, 700); 
+      }, 700);
       return () => clearTimeout(timer);
     }
   }, [targetPath]);
@@ -76,23 +76,23 @@ export default function SupernovaWelcome() {
 
   // 3. アニメーションシーケンスの開始
   const startSequence = async () => {
-    let next: string = '/home'; 
+    let next: string = '/(tabs)';
     try {
       const launched = await AsyncStorage.getItem('hasLaunched');
       if (!launched) {
         await AsyncStorage.setItem('hasLaunched', 'true');
         next = '/setup';
       }
-    } catch (e) {}
+    } catch (e) { }
 
-    try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch (e) {}
+    try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch (e) { }
 
     uiFade.value = withTiming(0, { duration: 250 });
 
     // 星の収束（サイズ0へ）
-    starGatherProgress.value = withTiming(1, { 
-      duration: 500, 
-      easing: Easing.bezier(0.25, 1, 0.5, 1) 
+    starGatherProgress.value = withTiming(1, {
+      duration: 500,
+      easing: Easing.bezier(0.25, 1, 0.5, 1)
     }, (finished) => {
       if (finished) {
         runOnJS(triggerPortalFadeOut)();
@@ -103,7 +103,7 @@ export default function SupernovaWelcome() {
 
   const handlePressIn = () => {
     if (isLaunching.value) return;
-    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); } catch (e) {}
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); } catch (e) { }
     charge.value = withTiming(1, { duration: 1200 });
     starGatherProgress.value = withTiming(0.12, { duration: 1200 });
 
@@ -128,7 +128,7 @@ export default function SupernovaWelcome() {
         const currentX = interpolate(p, [0, 1], [star.x, PORTAL_CENTER_X]);
         const currentY = interpolate(p, [0, 1], [star.y, PORTAL_CENTER_Y]);
         const currentSize = interpolate(p, [0, 0.9, 1], [star.size, 0.5, 0], 'clamp');
-        
+
         return {
           cx: currentX,
           cy: currentY,
@@ -162,15 +162,15 @@ export default function SupernovaWelcome() {
       </Animated.View>
 
       {/* Portal */}
-      <Animated.View style={[{ position: 'absolute', width: PORTAL_SIZE, height: PORTAL_SIZE }, 
-        useAnimatedStyle(() => ({
-          transform: [
-            { translateX: PORTAL_CENTER_X - PORTAL_SIZE / 2 },
-            { translateY: PORTAL_CENTER_Y - PORTAL_SIZE / 2 },
-            { scale: portalScale.value }
-          ],
-          opacity: portalOpacity.value,
-        }))]}>
+      <Animated.View style={[{ position: 'absolute', width: PORTAL_SIZE, height: PORTAL_SIZE },
+      useAnimatedStyle(() => ({
+        transform: [
+          { translateX: PORTAL_CENTER_X - PORTAL_SIZE / 2 },
+          { translateY: PORTAL_CENTER_Y - PORTAL_SIZE / 2 },
+          { scale: portalScale.value }
+        ],
+        opacity: portalOpacity.value,
+      }))]}>
         <Svg width={PORTAL_SIZE} height={PORTAL_SIZE} viewBox={`0 0 ${PORTAL_SIZE} ${PORTAL_SIZE}`}>
           <Defs>
             <RadialGradient id="portalRad" cx="50%" cy="50%" r="50%">
@@ -179,10 +179,10 @@ export default function SupernovaWelcome() {
               <Stop offset="100%" stopColor="#000000" stopOpacity="0" />
             </RadialGradient>
           </Defs>
-          <AnimatedCircle cx={PORTAL_SIZE / 2} cy={PORTAL_SIZE / 2} fill="url(#portalRad)" 
+          <AnimatedCircle cx={PORTAL_SIZE / 2} cy={PORTAL_SIZE / 2} fill="url(#portalRad)"
             animatedProps={useAnimatedProps(() => ({
               r: (PORTAL_SIZE * 0.25) + interpolate(charge.value, [0, 1], [0, PORTAL_SIZE * 0.2])
-            }))} 
+            }))}
           />
         </Svg>
       </Animated.View>
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   top: { alignItems: 'center', marginTop: 30 },
   titleWrapper: { flexDirection: 'row', alignItems: 'center' },
   titleBracket: { color: THEME_CYAN, fontSize: 32, fontWeight: '200', opacity: 0.5, marginHorizontal: 12 },
-  brandTitle: { 
+  brandTitle: {
     color: '#FFF', fontSize: 28, fontWeight: '900', letterSpacing: 4,
     textShadowColor: THEME_CYAN, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10,
   },
