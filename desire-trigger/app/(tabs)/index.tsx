@@ -13,6 +13,10 @@ import SystemAnalysisCard from '../../components/home/SystemAnalysisCard';
 import LaunchButton from '../../components/home/LaunchButton';
 import AnalysisSummaryCard from '../../components/home/AnalysisSummaryCard';
 import ActionSummaryCard from '../../components/home/ActionSummaryCard';
+import { getTodayDiagnostic, getLatestDiagnostic } from '../../supabase/diagnostics';
+import { fetchTodayTasks } from '../../supabase/tasks';
+import { mapMetricKeyToPrimary } from '../../lib/typeMapping';
+import { PrimaryMetric } from '../../types';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -23,7 +27,10 @@ export default function HomeScreen() {
   const [userName, setUserName] = useState<string>("...");
   const [hasDiagnosedEver, setHasDiagnosedEver] = useState(false);
   const [hasDiagnosedToday, setHasDiagnosedToday] = useState(false);
-  const [allTasksCompleted, setAllTasksCompleted] = useState(false);
+
+  // Data State
+  const [taskSummary, setTaskSummary] = useState({ total: 0, completed: 0, isAllCompleted: false });
+  const [analysisSummary, setAnalysisSummary] = useState<{ dominantMetric: string; value: number } | null>(null);
 
   // Tooltip State
   const [showTooltip, setShowTooltip] = useState(false);
@@ -42,31 +49,57 @@ export default function HomeScreen() {
     try {
       setLoading(true);
 
-      // ... (existing data loading)
+      // 1. Get Profile ID
+      const profileId = await AsyncStorage.getItem('profile_id');
+      const userName = await AsyncStorage.getItem('userName');
+      if (userName) setUserName(userName);
+
+      if (!profileId) {
+        // Handle no profile (new user or reset) -> Should be handled by layout/guard usually
+        setHasDiagnosedToday(false);
+        setHasDiagnosedEver(false);
+        return;
+      }
 
       // 2. Diagnosis Status
-      const lastDate = await AsyncStorage.getItem('lastQuestionDate');
+      const todayDiag = await getTodayDiagnostic(profileId);
+      setHasDiagnosedToday(!!todayDiag);
 
-      // Match logic with complete.tsx (Local Time)
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const todayStr = `${year}-${month}-${day}`;
+      // Check "Ever" (using AsyncStorage for simplicity or check DB count if needed)
+      // For now, trust the existence of profile_id or check local flag
+      const everDiagnosed = await AsyncStorage.getItem('hasLaunched');
+      setHasDiagnosedEver(!!everDiagnosed);
 
-      const isTodayDiagnosed = lastDate === todayStr;
+      // 3. Tasks Status (Supabase)
+      const tasks = await fetchTodayTasks(profileId);
+      const total = tasks.length;
+      const completed = tasks.filter(t => t.status === 'applied' || t.isCompleted).length;
+      const isAllCompleted = total > 0 && completed === total;
 
-      const everDiagnosed = await AsyncStorage.getItem('hasDiagnosedEver');
+      setTaskSummary({ total, completed, isAllCompleted });
 
-      setHasDiagnosedToday(isTodayDiagnosed);
-      setHasDiagnosedEver(everDiagnosed === 'true');
+      // 4. Analysis Summary (Latest Diagnostic)
+      if (todayDiag) {
+        // If diagnosed today, use that
+        const metricKey = todayDiag.dominant_metric;
+        const primary = mapMetricKeyToPrimary(metricKey);
+        // Value? Diagnostic struct has explicit fields.
+        // We need to access the property dynamically or map it.
+        // todayDiag is { exploration: 10, ... }
+        // TS might complain about dynamic access.
+        const val = (todayDiag as any)[metricKey] || 0;
+        setAnalysisSummary({ dominantMetric: primary.toUpperCase(), value: val });
+      } else {
+        const latest = await getLatestDiagnostic(profileId);
+        if (latest) {
+          const metricKey = latest.dominant_metric;
+          const primary = mapMetricKeyToPrimary(metricKey);
+          const val = (latest as any)[metricKey] || 0;
+          setAnalysisSummary({ dominantMetric: primary.toUpperCase(), value: val });
+        }
+      }
 
-      // 3. Tasks Status
-      const tasksDone = await AsyncStorage.getItem('dailyMissionCompleted');
-      setAllTasksCompleted(tasksDone === 'true');
-      // ...
-
-      // 4. Tooltip Check
+      // 5. Tooltip Check
       const hasSeen = await AsyncStorage.getItem('hasSeenTooltip');
       if (hasSeen !== 'true') {
         setShowTooltip(true);
@@ -78,7 +111,7 @@ export default function HomeScreen() {
       }
 
     } catch (e) {
-      // ...
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -115,8 +148,10 @@ export default function HomeScreen() {
   };
 
   const handleTasksCompleteDebug = async () => {
-    await AsyncStorage.setItem('dailyMissionCompleted', 'true');
-    setAllTasksCompleted(true);
+    // await AsyncStorage.setItem('dailyMissionCompleted', 'true');
+    // setAllTasksCompleted(true);
+    // For debug with Supabase, we might need a different approach or just mock the state locally
+    setTaskSummary({ total: 3, completed: 3, isAllCompleted: true });
     setDebugModalVisible(false);
   };
 
@@ -151,16 +186,18 @@ export default function HomeScreen() {
         {/* Summaries (Only if diagnosed) */}
         {hasDiagnosedToday && (
           <>
-            <AnalysisSummaryCard
-              dominantMetric="Explore"
-              value={85} // Mock value
-              showTooltip={showTooltip}
-            />
+            {analysisSummary && (
+              <AnalysisSummaryCard
+                dominantMetric={analysisSummary.dominantMetric}
+                value={analysisSummary.value}
+                showTooltip={showTooltip}
+              />
+            )}
 
             <ActionSummaryCard
-              totalTasks={3}
-              completedTasks={allTasksCompleted ? 3 : 1} // Mock logic
-              isAllCompleted={allTasksCompleted}
+              totalTasks={taskSummary.total}
+              completedTasks={taskSummary.completed}
+              isAllCompleted={taskSummary.isAllCompleted}
               showTooltip={showTooltip}
             />
           </>

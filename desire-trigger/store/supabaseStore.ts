@@ -12,7 +12,7 @@ interface SupabaseAppState {
 
     // Actions
     fetchQuestions: () => Promise<void>;
-    setAnswer: (questionId: number, answer: boolean) => void;
+    setAnswer: (questionId: number, answer: boolean, strength: number) => void;
     nextQuestion: () => void;
     resetQuestions: () => void;
     submitDiagnostic: (userId: UserId) => Promise<void>;
@@ -44,10 +44,10 @@ export const useSupabaseStore = create<SupabaseAppState>((set, get) => ({
         }
     },
 
-    setAnswer: (questionId, answer) => set((state) => ({
+    setAnswer: (questionId, answer, strength) => set((state) => ({
         answers: {
             ...state.answers,
-            [questionId]: { question_id: questionId, answer }
+            [questionId]: { question_id: questionId, answer, strength }
         }
     })),
 
