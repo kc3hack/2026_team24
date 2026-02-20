@@ -1,28 +1,10 @@
 import { create } from 'zustand';
-import { MOCK_QUESTIONS } from '../data/mock/mockQuestions';
-import { MOCK_SCORES } from '../data/mock/mockScores';
-import { MOCK_ACTIONS } from '../data/mock/mockActions';
+// タスクデータは constants/mockData.ts に統合
+export { MOCK_TASK_SETS, MOCK_TASKS, type TaskSet, MOCK_QUESTIONS } from '../constants/mockData';
 
-interface AppState {
-    questions: typeof MOCK_QUESTIONS;
-    currentQuestionIndex: number;
-    scores: typeof MOCK_SCORES;
-    actions: typeof MOCK_ACTIONS;
-    answers: Record<number, 'YES' | 'NO' | 'UNKNOWN'>;
+// --- Mock Questions (for Diagnostic) ---
+// 質問データは constants/mockData.ts に統合済み（焼肉テーマ）
 
-    setAnswer: (questionId: number, answer: 'YES' | 'NO' | 'UNKNOWN') => void;
-    nextQuestion: () => void;
-    resetQuestions: () => void;
-}
-
-export const useMockStore = create<AppState>((set) => ({
-    questions: MOCK_QUESTIONS,
-    currentQuestionIndex: 0,
-    scores: MOCK_SCORES,
-    actions: MOCK_ACTIONS,
-    answers: {},
-
-    setAnswer: (id, answer) => set((state) => ({ answers: { ...state.answers, [id]: answer } })),
-    nextQuestion: () => set((state) => ({ currentQuestionIndex: state.currentQuestionIndex + 1 })),
-    resetQuestions: () => set({ currentQuestionIndex: 0, answers: {} }),
-}));
+// --- Zustand Store ---
+// Note: This store is deprecated - questions are now managed via AsyncStorage
+// and retrieved from constants/mockData.ts in mock mode

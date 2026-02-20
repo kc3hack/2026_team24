@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import Svg, { Path, Circle, Line, Text as SvgText, Defs, LinearGradient, Stop, G } from 'react-native-svg';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getMonthlyDiagnostics } from '../../supabase/diagnostics';
+import { Diagnostic } from '../../types';
+import { useDataModeStore } from '../../store/dataModeStore';
 
 const width = Dimensions.get('window').width;
 const CHART_WIDTH = width - 40; // Full width minus padding
 const CHART_HEIGHT = 180;
 const GRAPH_HEIGHT = 130;
 const PADDING_TOP = 20;
-const PADDING_X = 30;
-const GRAPH_WIDTH = CHART_WIDTH - (PADDING_X * 2);
+const PADDING_LEFT = 50; // Y軸目盛り用のスペース
+const PADDING_RIGHT = 30;
+const GRAPH_WIDTH = CHART_WIDTH - (PADDING_LEFT + PADDING_RIGHT);
 
 // View Modes
 type ViewMode = 'week' | 'month';
@@ -76,33 +81,175 @@ const BUFF_EVENTS_MONTH: Record<MetricKey, number[]> = {
     idle: [0],
 };
 
+// Y軸目盛りを計算する関数
+const calculateYAxisTicks = (data: number[]): number[] => {
+    // 1. データが空またはnull/undefinedの場合のガード処理
+    if (!data || data.length === 0 || data.every(v => v == null || isNaN(v))) {
+        return [0, 25, 50, 75, 100]; // デフォルト値を返す
+    }
+
+    // 有効な数値のみをフィルタリング
+    const validData = data.filter(v => v != null && !isNaN(v) && isFinite(v));
+    if (validData.length === 0) {
+        return [0, 25, 50, 75, 100];
+    }
+
+    const min = Math.min(...validData);
+    const max = Math.max(...validData);
+    const range = max - min;
+
+    // データ範囲が大きい場合は固定目盛り（0, 25, 50, 75, 100）
+    if (range >= 60) {
+        return [0, 25, 50, 75, 100];
+    }
+
+    // データ範囲に応じて動的に調整
+    const adjustedMin = Math.floor(min / 10) * 10;
+    const adjustedMax = Math.ceil(max / 10) * 10;
+
+    // 2. stepが0以下になった場合のフォールバック
+    let step = Math.ceil((adjustedMax - adjustedMin) / 5 / 10) * 10;
+    if (step <= 0 || !isFinite(step)) {
+        step = 25; // デフォルトのステップ値
+    }
+
+    const ticks: number[] = [];
+    // 3. ticksの最大数を制限（最大10個まで）
+    const maxTicks = 10;
+    let tickCount = 0;
+
+    for (let i = adjustedMin; i <= adjustedMax && tickCount < maxTicks; i += step) {
+        ticks.push(i);
+        tickCount++;
+    }
+
+    // ticksが空の場合のフォールバック
+    if (ticks.length === 0) {
+        return [0, 25, 50, 75, 100];
+    }
+
+    // 100を含める
+    if (ticks[ticks.length - 1] < 100) {
+        ticks.push(100);
+    }
+
+    return ticks;
+};
 
 export default function TrendSection() {
     const [activeMetric, setActiveMetric] = useState<MetricKey>('immersion');
     const [viewMode, setViewMode] = useState<ViewMode>('week');
-    const [data, setData] = useState(getMockData('immersion', 'week'));
+    const [data, setData] = useState<number[]>([50, 50, 50, 50, 50, 50, 50]);
+    const [loading, setLoading] = useState(false);
+    const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
 
+    const { dataMode } = useDataModeStore();
     const progress = useSharedValue(0);
 
     useEffect(() => {
+        loadDiagnostics();
+    }, [dataMode]);
+
+    useEffect(() => {
+        if (diagnostics.length > 0) {
+            processData();
+        }
+    }, [activeMetric, viewMode, diagnostics]);
+
+    const loadDiagnostics = async () => {
+        try {
+            setLoading(true);
+
+            // MOCKモードの場合はモックデータを使用
+            if (dataMode === 'mock') {
+                const { generateMockDiagnostics } = await import('../../constants/mockData');
+                const mockDiagnostics = generateMockDiagnostics();
+                setDiagnostics(mockDiagnostics);
+                setLoading(false);
+                return;
+            }
+
+            const profileId = await AsyncStorage.getItem('profile_id');
+            if (!profileId) return;
+
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1;
+
+            const data = await getMonthlyDiagnostics(profileId, year, month);
+            setDiagnostics(data);
+        } catch (e) {
+            console.error('Failed to load diagnostics:', e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const processData = () => {
         progress.value = 0;
-        setData(getMockData(activeMetric, viewMode));
+
+        if (diagnostics.length === 0) {
+            setData(getMockData(activeMetric, viewMode));
+        } else {
+            // 実データから抽出
+            const metricKeyMap: Record<MetricKey, keyof Diagnostic> = {
+                exploration: 'exploration',
+                immersion: 'immersion',
+                refactor: 'organization',
+                contribution: 'contribution',
+                idle: 'vitality',
+            };
+
+            const key = metricKeyMap[activeMetric];
+
+            if (viewMode === 'week') {
+                // 過去7日分（最新7件）
+                const last7 = diagnostics.slice(-7);
+                const values = last7.map(d => d[key] as number);
+                setData(values.length > 0 ? values : [50, 50, 50, 50, 50, 50, 50]);
+            } else {
+                // 月次: 週ごとに平均
+                const weeklyData: number[] = [];
+                for (let week = 0; week < 4; week++) {
+                    const start = week * 7;
+                    const end = start + 7;
+                    const weekDiags = diagnostics.slice(start, end);
+                    if (weekDiags.length > 0) {
+                        const avg = weekDiags.reduce((sum, d) => sum + (d[key] as number), 0) / weekDiags.length;
+                        weeklyData.push(Math.round(avg));
+                    }
+                }
+                setData(weeklyData.length > 0 ? weeklyData : [50, 50, 50, 50]);
+            }
+        }
+
         progress.value = withTiming(1, { duration: 800 });
-    }, [activeMetric, viewMode]);
+    };
 
     const activeConfig = METRICS.find(m => m.key === activeMetric)!;
     const labels = viewMode === 'week' ? LABELS_WEEK : LABELS_MONTH;
     const buffs = viewMode === 'week' ? BUFF_EVENTS[activeMetric] : BUFF_EVENTS_MONTH[activeMetric];
 
     const getPathD = () => {
+        // データが不足している場合のガード
+        if (!data || data.length === 0) {
+            return `M ${PADDING_LEFT} ${PADDING_TOP + GRAPH_HEIGHT}`;
+        }
+
+        // データが1つだけの場合
+        if (data.length === 1) {
+            const y = PADDING_TOP + GRAPH_HEIGHT - (data[0] / 100) * GRAPH_HEIGHT;
+            return `M ${PADDING_LEFT} ${y}`;
+        }
+
         const stepX = GRAPH_WIDTH / (data.length - 1);
         // Map value 0-100 to y position (Note: GRAPH_HEIGHT is bottom, 0 is top relative to graph area)
-        // Adjust coordinate system: Y=0 is top. 
+        // Adjust coordinate system: Y=0 is top.
         // We want 100 to be at PADDING_TOP, 0 to be at GRAPH_HEIGHT + PADDING_TOP
 
-        let d = `M ${PADDING_X} ${PADDING_TOP + GRAPH_HEIGHT - (data[0] / 100) * GRAPH_HEIGHT}`;
+        let d = `M ${PADDING_LEFT} ${PADDING_TOP + GRAPH_HEIGHT - (data[0] / 100) * GRAPH_HEIGHT}`;
         for (let i = 1; i < data.length; i++) {
-            const x = PADDING_X + i * stepX;
+            const x = PADDING_LEFT + i * stepX;
             const y = PADDING_TOP + GRAPH_HEIGHT - (data[i] / 100) * GRAPH_HEIGHT;
             d += ` L ${x} ${y}`;
         }
@@ -110,20 +257,45 @@ export default function TrendSection() {
     };
 
     const trendMessage = () => {
-        const last = data[data.length - 1];
-        const prev = data[data.length - 2];
-        const diff = last - prev;
+        // データが不足している場合のガード
+        if (!data || data.length < 2) {
+            return "データを蓄積中です。";
+        }
 
-        if (diff > 5) return "上昇トレンドです！調子が良いですね。";
-        if (diff < -5) return "少し下降気味。リフレッシュが必要かも？";
-        return "安定しています。この調子を維持しましょう。";
+        const first = data[0]; // 最古値
+        const last = data[data.length - 1]; // 最新値
+
+        // 値が不正な場合のガード
+        if (first == null || last == null || isNaN(first) || isNaN(last)) {
+            return "データを確認中です。";
+        }
+
+        const diff = last - first;
+
+        // 上昇傾向（+10以上）
+        if (diff >= 10) {
+            return `上昇中です。この調子を維持しましょう。`;
+        }
+
+        // 下降傾向（-10以下）
+        if (diff <= -10) {
+            return `少し下がり気味です。意識して取り組んでみましょう。`;
+        }
+
+        // 安定（-10〜+10の範囲）
+        return `安定しています。この調子を維持しましょう。`;
     };
 
     const points = data.map((val, i) => {
-        const x = PADDING_X + i * (GRAPH_WIDTH / (data.length - 1));
+        // データが1つの場合の特別処理
+        const stepX = data.length > 1 ? GRAPH_WIDTH / (data.length - 1) : 0;
+        const x = PADDING_LEFT + i * stepX;
         const y = PADDING_TOP + GRAPH_HEIGHT - (val / 100) * GRAPH_HEIGHT;
         return { x, y, val, isBuff: buffs.includes(i) };
     });
+
+    // Y軸目盛りを計算
+    const yAxisTicks = calculateYAxisTicks(data);
 
     const animatedStyle = useAnimatedStyle(() => ({
         opacity: progress.value,
@@ -188,14 +360,38 @@ export default function TrendSection() {
                         </LinearGradient>
                     </Defs>
 
-                    {/* Grid Lines */}
-                    <Line x1={PADDING_X} y1={PADDING_TOP} x2={CHART_WIDTH - PADDING_X} y2={PADDING_TOP} stroke="#334155" strokeWidth="1" strokeDasharray="4 4" />
-                    <Line x1={PADDING_X} y1={PADDING_TOP + GRAPH_HEIGHT / 2} x2={CHART_WIDTH - PADDING_X} y2={PADDING_TOP + GRAPH_HEIGHT / 2} stroke="#334155" strokeWidth="1" strokeDasharray="4 4" />
-                    <Line x1={PADDING_X} y1={PADDING_TOP + GRAPH_HEIGHT} x2={CHART_WIDTH - PADDING_X} y2={PADDING_TOP + GRAPH_HEIGHT} stroke="#334155" strokeWidth="1" />
+                    {/* Y軸目盛り線と数値 */}
+                    {yAxisTicks.map((tick) => {
+                        const y = PADDING_TOP + GRAPH_HEIGHT - (tick / 100) * GRAPH_HEIGHT;
+                        return (
+                            <G key={tick}>
+                                {/* 目盛り線（破線） */}
+                                <Line
+                                    x1={PADDING_LEFT}
+                                    y1={y}
+                                    x2={CHART_WIDTH - PADDING_RIGHT}
+                                    y2={y}
+                                    stroke="#334155"
+                                    strokeWidth="1"
+                                    strokeDasharray="4 4"
+                                />
+                                {/* 目盛り数値 */}
+                                <SvgText
+                                    x={PADDING_LEFT - 10}
+                                    y={y + 4}
+                                    fill="#64748b"
+                                    fontSize="10"
+                                    textAnchor="end"
+                                >
+                                    {tick}
+                                </SvgText>
+                            </G>
+                        );
+                    })}
 
                     {/* Area */}
                     <Path
-                        d={`${getPathD()} L ${CHART_WIDTH - PADDING_X} ${PADDING_TOP + GRAPH_HEIGHT} L ${PADDING_X} ${PADDING_TOP + GRAPH_HEIGHT} Z`}
+                        d={`${getPathD()} L ${CHART_WIDTH - PADDING_RIGHT} ${PADDING_TOP + GRAPH_HEIGHT} L ${PADDING_LEFT} ${PADDING_TOP + GRAPH_HEIGHT} Z`}
                         fill="url(#gradient)"
                     />
 

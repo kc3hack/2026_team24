@@ -6,13 +6,13 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, withDelay, inte
 import { Feather } from '@expo/vector-icons';
 import { MetricKey } from './MetricDetailCard';
 
-// 5 Metrics
-const analysisMetrics: { key: MetricKey; label: string; value: number; color: string }[] = [
-  { key: 'exploration', label: '探索', value: 70, color: '#3B82F6' }, // Blue
-  { key: 'immersion', label: '没頭', value: 90, color: '#10B981' },   // Emerald
+// Default Metrics (fallback)
+const defaultMetrics: { key: MetricKey; label: string; value: number; color: string }[] = [
+  { key: 'exploration', label: '探索', value: 50, color: '#3B82F6' }, // Blue
+  { key: 'immersion', label: '没頭', value: 50, color: '#10B981' },   // Emerald
   { key: 'refactor', label: '整理', value: 50, color: '#8B5CF6' },    // Violet
-  { key: 'contribution', label: '貢献', value: 40, color: '#F97316' }, // Orange
-  { key: 'idle', label: '元気', value: 85, color: '#06B6D4' },        // Cyan
+  { key: 'contribution', label: '貢献', value: 50, color: '#F97316' }, // Orange
+  { key: 'idle', label: '元気', value: 50, color: '#06B6D4' },        // Cyan
 ];
 
 const width = Dimensions.get('window').width;
@@ -27,19 +27,29 @@ const AnimatedG = Animated.createAnimatedComponent(G);
 interface RadarChartSectionProps {
   onMetricSelect?: (key: MetricKey) => void;
   selectedMetric?: MetricKey;
+  metricsData?: { exploration: number; immersion: number; organization: number; contribution: number; vitality: number };
 }
 
-const RadarChartSection = ({ onMetricSelect, selectedMetric }: RadarChartSectionProps) => {
+const RadarChartSection = ({ onMetricSelect, selectedMetric, metricsData }: RadarChartSectionProps) => {
   const progress = useSharedValue(0);
 
   useEffect(() => {
     progress.value = withDelay(300, withSpring(1, { damping: 12, stiffness: 90 }));
   }, []);
 
+  // メトリクスデータを構築（表示は整数に丸める）
+  const analysisMetrics = metricsData ? [
+    { key: 'exploration' as MetricKey, label: '探索', value: Math.round(metricsData.exploration), color: '#3B82F6' },
+    { key: 'immersion' as MetricKey, label: '没頭', value: Math.round(metricsData.immersion), color: '#10B981' },
+    { key: 'refactor' as MetricKey, label: '整理', value: Math.round(metricsData.organization), color: '#8B5CF6' },
+    { key: 'contribution' as MetricKey, label: '貢献', value: Math.round(metricsData.contribution), color: '#F97316' },
+    { key: 'idle' as MetricKey, label: '元気', value: Math.round(metricsData.vitality), color: '#06B6D4' },
+  ] : defaultMetrics;
+
   // Calculate points for the chart
   const angleStep = (Math.PI * 2) / 5;
 
-  const calculatePoints = (data: typeof analysisMetrics, scale: number = 1) => {
+  const calculatePoints = (data: typeof defaultMetrics, scale: number = 1) => {
     return data.map((item, index) => {
       const angle = index * angleStep - Math.PI / 2; // Start from top
       const valueScale = (item.value / 100) * scale;
