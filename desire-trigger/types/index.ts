@@ -40,9 +40,6 @@ export interface Profile {
     avatarUrl?: string;
     level?: number;
     exp?: number;
-    // New fields for settings
-    favorite_technology?: string;
-    worry?: string;
 }
 
 export type OnboardingInput = Omit<Profile, 'id' | 'created_at' | 'updated_at'>;

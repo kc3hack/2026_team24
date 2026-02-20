@@ -23,8 +23,7 @@ export async function fetchTodayTasks(profileId: string): Promise<Task[]> {
         .limit(3); // Usually 3 tasks per day
 
     if (error) {
-        console.warn(`[Mock Mode] Failed to fetch today tasks: ${error.message}. Returning empty list.`);
-        return [];
+        throw new Error(`Failed to fetch today tasks: ${error.message}`);
     }
 
     return data as Task[];
@@ -44,8 +43,7 @@ export async function completeTask(taskId: string): Promise<void> {
         .eq('id', taskId);
 
     if (error) {
-        console.warn(`[Mock Mode] Failed to complete task: ${error.message}.`);
-        return;
+        throw new Error(`Failed to complete task: ${error.message}`);
     }
 }
 
@@ -79,8 +77,7 @@ export async function fetchTasksByDate(profileId: string, date: string): Promise
     // FUNCTIONS.md decription: "その日に生成されたタスク（完了済みのみ）" -> Yes.
 
     if (error) {
-        console.warn(`[Mock Mode] Failed to fetch tasks by date: ${error.message}. Returning empty list.`);
-        return [];
+        throw new Error(`Failed to fetch tasks by date: ${error.message}`);
     }
 
     return data as Task[];

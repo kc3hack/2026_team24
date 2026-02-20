@@ -64,11 +64,7 @@ export async function saveDiagnostic(
             if (upsertError) throw new Error(`Failed to upsert diagnostic: ${upsertError.message}`);
             return upsertData.id;
         }
-        if (error.code === '23505') { // unique_violation
-            // ... (upsert logic)
-        }
-        console.warn(`[Mock Mode] Failed to save diagnostic: ${error.message}. Returning mock-id.`);
-        return 'mock-id-' + Date.now();
+        throw new Error(`Failed to save diagnostic: ${error.message}`);
     }
 
     return data.id;
@@ -88,8 +84,7 @@ export async function getTodayDiagnostic(profileId: string): Promise<Diagnostic 
         .maybeSingle();
 
     if (error) {
-        console.warn(`[Mock Mode] Failed to check today's diagnostic: ${error.message}. Returning null.`);
-        return null;
+        throw new Error(`Failed to check today's diagnostic: ${error.message}`);
     }
 
     return data as Diagnostic | null;
@@ -108,8 +103,7 @@ export async function getLatestDiagnostic(profileId: string): Promise<Diagnostic
         .maybeSingle();
 
     if (error) {
-        console.warn(`[Mock Mode] Failed to get latest diagnostic: ${error.message}. Returning null.`);
-        return null;
+        throw new Error(`Failed to get latest diagnostic: ${error.message}`);
     }
 
     return data as Diagnostic | null;
@@ -127,8 +121,7 @@ export async function getDiagnosticHistory(profileId: string): Promise<Diagnosti
         .order('date', { ascending: true });
 
     if (error) {
-        console.warn(`[Mock Mode] Failed to get diagnostic history: ${error.message}. Returning empty list.`);
-        return [];
+        throw new Error(`Failed to get diagnostic history: ${error.message}`);
     }
 
     return data as Diagnostic[];
@@ -158,8 +151,7 @@ export async function getCalendarData(
         .lt('date', startOfNextMonth);
 
     if (error) {
-        console.warn(`[Mock Mode] Failed to get calendar data: ${error.message}. Returning empty list.`);
-        return [];
+        throw new Error(`Failed to get calendar data: ${error.message}`);
     }
 
     return data as { date: string; dominant_metric: MetricKey }[];
@@ -177,8 +169,7 @@ export async function getDiagnosticByDate(profileId: string, date: string): Prom
         .maybeSingle();
 
     if (error) {
-        console.warn(`[Mock Mode] Failed to get diagnostic by date: ${error.message}. Returning null.`);
-        return null;
+        throw new Error(`Failed to get diagnostic by date: ${error.message}`);
     }
 
     return data as Diagnostic | null;
