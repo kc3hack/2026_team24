@@ -68,8 +68,7 @@ export default function QuestionCompleteScreen() {
       setStatusText('パラメータを計算中...');
       const scores = calculateParameters(answers, questions);
 
-      // アドバイス生成
-      setStatusText('アドバイスを生成中...');
+      // answersWithText を準備（result-flowで使用）
       const answersWithText = answers.map(a => {
         // 🔧 型変換対応：question_id が文字列でも数値でも対応
         const questionIdNumber = typeof a.question_id === 'string'
@@ -82,30 +81,17 @@ export default function QuestionCompleteScreen() {
         };
       });
 
-      // generate-advice Edge Functionを呼び出す
-      const { data: adviceData, error: adviceError } = await supabase.functions.invoke('generate-advice', {
-        body: {
-          answers: answersWithText,
-          scores,
-        },
-      });
-
-      if (adviceError) {
-        console.error('Advice generation error:', adviceError);
-      }
-
-      const advice = adviceData?.advice || null;
-
-      // 診断結果を保存
+      // 診断結果を保存（アドバイスはresult-flowで生成・保存される）
       setStatusText('結果を保存中...');
       await saveDiagnosticResult(diagnosticId, {
         answers,
         scores,
-        advice,
+        advice: null, // アドバイスはresult-flowで生成される
       });
 
-      // AsyncStorageに scores を保存（result-flowで使用）
+      // AsyncStorageに scores と answers を保存（result-flowで使用）
       await AsyncStorage.setItem('current_scores', JSON.stringify(scores));
+      await AsyncStorage.setItem('current_answers', JSON.stringify(answersWithText));
 
       // 遷移
       setTimeout(() => {

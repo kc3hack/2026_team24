@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         paddingVertical: 16,
-        marginTop: 40,
+        marginTop: 24, // 40 → 24 に変更（16px上に移動）
         gap: 20,
     },
     navButton: {
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
         width: '100%',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 20,
+        paddingVertical: 12, // 20 → 12 に変更（8px上に移動）
     },
     timerLabel: {
         fontSize: 12,

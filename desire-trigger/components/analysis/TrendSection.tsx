@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMonthlyDiagnostics } from '../../supabase/diagnostics';
 import { Diagnostic } from '../../types';
+import { useDataModeStore } from '../../store/dataModeStore';
 
 const width = Dimensions.get('window').width;
 const CHART_WIDTH = width - 40; // Full width minus padding
@@ -142,11 +143,12 @@ export default function TrendSection() {
     const [loading, setLoading] = useState(false);
     const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
 
+    const { dataMode } = useDataModeStore();
     const progress = useSharedValue(0);
 
     useEffect(() => {
         loadDiagnostics();
-    }, []);
+    }, [dataMode]);
 
     useEffect(() => {
         if (diagnostics.length > 0) {
@@ -157,6 +159,16 @@ export default function TrendSection() {
     const loadDiagnostics = async () => {
         try {
             setLoading(true);
+
+            // MOCKモードの場合はモックデータを使用
+            if (dataMode === 'mock') {
+                const { generateMockDiagnostics } = await import('../../constants/mockData');
+                const mockDiagnostics = generateMockDiagnostics();
+                setDiagnostics(mockDiagnostics);
+                setLoading(false);
+                return;
+            }
+
             const profileId = await AsyncStorage.getItem('profile_id');
             if (!profileId) return;
 
@@ -259,20 +271,19 @@ export default function TrendSection() {
         }
 
         const diff = last - first;
-        const metricName = activeConfig.label;
 
         // 上昇傾向（+10以上）
         if (diff >= 10) {
-            return `${metricName}: 上昇中です。この調子を維持しましょう。`;
+            return `上昇中です。この調子を維持しましょう。`;
         }
 
         // 下降傾向（-10以下）
         if (diff <= -10) {
-            return `${metricName}: 少し下がり気味です。意識して取り組んでみましょう。`;
+            return `少し下がり気味です。意識して取り組んでみましょう。`;
         }
 
         // 安定（-10〜+10の範囲）
-        return `${metricName}: 安定しています。この調子を維持しましょう。`;
+        return `安定しています。この調子を維持しましょう。`;
     };
 
     const points = data.map((val, i) => {

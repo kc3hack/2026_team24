@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, ScrollView, Text, ActivityIndicator } from 'react-native';
+import { View, ScrollView, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -8,6 +8,7 @@ import { getSessionDate } from '../../lib/dateUtils';
 import { getRandomQuestions } from '../../supabase/questions';
 import { createDiagnostic } from '../../supabase/diagnostics';
 import { HomeData } from '../../types';
+import { useDataModeStore } from '../../store/dataModeStore';
 
 // Components
 import GreetingHeader from '../../components/home/GreetingHeader';
@@ -15,9 +16,11 @@ import SystemAnalysisCard from '../../components/home/SystemAnalysisCard';
 import LaunchButton from '../../components/home/LaunchButton';
 import AnalysisSummaryCard from '../../components/home/AnalysisSummaryCard';
 import ActionSummaryCard from '../../components/home/ActionSummaryCard';
+import StarryBackground from '../../components/ui/StarryBackground';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { dataMode } = useDataModeStore();
 
   // State
   const [loading, setLoading] = useState(true);
@@ -100,15 +103,24 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-[#121212] justify-center items-center">
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </SafeAreaView>
+      <View style={{ flex: 1, backgroundColor: '#020617' }}>
+        <View style={StyleSheet.absoluteFill}>
+          <StarryBackground />
+        </View>
+        <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+        </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#121212]">
-      <ScrollView contentContainerStyle={{ padding: 24 }}>
+    <View style={{ flex: 1, backgroundColor: '#020617' }}>
+      <View style={StyleSheet.absoluteFill}>
+        <StarryBackground />
+      </View>
+      <SafeAreaView style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ padding: 24 }}>
 
         {/* Header */}
         <GreetingHeader
@@ -131,8 +143,8 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* Summaries (Only if diagnosed) */}
-        {homeData?.todayAnswered && (
+        {/* Summaries (Mock mode: 常に表示, Live mode: 回答済みの場合のみ) */}
+        {(dataMode === 'mock' || homeData?.todayAnswered) && homeData && (
           <>
             {homeData.topParameter && (
               <AnalysisSummaryCard
@@ -152,7 +164,8 @@ export default function HomeScreen() {
           </>
         )}
 
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }

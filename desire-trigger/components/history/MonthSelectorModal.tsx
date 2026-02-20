@@ -9,15 +9,31 @@ interface MonthSelectorModalProps {
     onClose: () => void;
     onSelectMonth: (date: Date) => void;
     currentDate: Date;
+    availableMonths?: string[]; // YYYY-MM 形式の配列
 }
 
-export default function MonthSelectorModal({ visible, onClose, onSelectMonth, currentDate }: MonthSelectorModalProps) {
-    // Generate last 12 months for selection
-    const months = Array.from({ length: 12 }, (_, i) => {
-        const d = new Date();
-        d.setMonth(d.getMonth() - i);
-        return d;
-    });
+export default function MonthSelectorModal({ visible, onClose, onSelectMonth, currentDate, availableMonths }: MonthSelectorModalProps) {
+    // 履歴がある月 + 今月のみを表示
+    const now = new Date();
+    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    // availableMonths がある場合はそれを使用、ない場合は過去12ヶ月
+    let months: Date[];
+
+    if (availableMonths && availableMonths.length > 0) {
+        // availableMonths + 現在の月を Date オブジェクトに変換
+        const monthSet = new Set([...availableMonths, currentYearMonth]);
+        months = Array.from(monthSet)
+            .map(ym => {
+                const [year, month] = ym.split('-').map(Number);
+                const d = new Date(year, month - 1, 1);
+                return d;
+            })
+            .sort((a, b) => b.getTime() - a.getTime()); // 降順（新しい順）
+    } else {
+        // フォールバック: 現在の月のみ
+        months = [new Date()];
+    }
 
     return (
         <Modal

@@ -19,7 +19,7 @@ const getModeLabel = (mode: string) => {
         case 'IMMERSION': return '没頭';
         case 'ORGANIZATION': return '整理';
         case 'CONTRIBUTION': return '貢献';
-        case 'REST': return '休息';
+        case 'VITALITY': return '元気';
         default: return mode;
     }
 };
@@ -65,11 +65,11 @@ const Scanline: React.FC<{ height: number; color: string }> = ({ height, color }
 };
 
 const MODE_COMPLETION_LABELS: Record<string, string[]> = {
-    EXPLORATION: ['獲得'],
-    IMMERSION: ['覚醒'],
-    ORGANIZATION: ['最適化'],
-    CONTRIBUTION: ['創出'],
-    REST: ['充填'],
+    EXPLORATION: ['探索完了'],
+    IMMERSION: ['没頭完了'],
+    ORGANIZATION: ['整理完了'],
+    CONTRIBUTION: ['貢献完了'],
+    VITALITY: ['元気回復'],
 };
 
 const getCompletionLabel = (mode: string, taskId: string) => {
@@ -173,12 +173,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ visible, task,
             setIsPressed(true);
             Vibration.vibrate(50);
 
-            // Start Charge
+            // Start Charge - プログレスバーが100%に達したら自動完了
             Animated.timing(chargeAnim, {
                 toValue: 1,
                 duration: 1000,
                 useNativeDriver: false
-            }).start();
+            }).start(({ finished }) => {
+                // プログレスバーが最大まで溜まったら完了
+                if (finished && !isLaunching) {
+                    handleLongPress();
+                }
+            });
 
             // Start Shake Loop
             Animated.loop(
@@ -216,11 +221,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ visible, task,
     // Dynamic border color
     const accentColor = (() => {
         switch (task.mode) {
-            case 'EXPLORATION': return '#2D9CDB';
-            case 'IMMERSION': return '#00FF9D';
-            case 'ORGANIZATION': return '#BD00FF';
-            case 'CONTRIBUTION': return '#FF9F1C';
-            case 'REST': return '#00F0FF';
+            case 'EXPLORATION': return '#FF00FF';      // 紫
+            case 'IMMERSION': return '#39FF14';        // 緑
+            case 'ORGANIZATION': return '#8B5CF6';     // 紫
+            case 'CONTRIBUTION': return '#F97316';     // オレンジ
+            case 'VITALITY': return '#06B6D4';         // シアン
             default: return '#00F0FF';
         }
     })();
@@ -309,7 +314,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({ visible, task,
                                         borderColor: Colors.textDim,
                                     }
                                 ]}
-                                onLongPress={handleLongPress}
+                                onLongPress={handleLongPress} // バックアップ（実際はchargeAnimの完了で発火）
                                 onPressIn={handlePressIn}
                                 onPressOut={handlePressOut}
                                 delayLongPress={1000}

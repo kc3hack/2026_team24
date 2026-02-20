@@ -10,7 +10,7 @@ import * as Notifications from 'expo-notifications';
 import { scheduleNotification } from '../hooks/useNotification';
 import SelectionGrid from '../components/setup/SelectionGrid';
 import StarryBackground from '../components/ui/StarryBackground';
-import { createUser } from '../supabase/profiles';
+import { createUser, getUser } from '../supabase/profiles';
 import { createInitialDiagnostic } from '../supabase/diagnostics';
 import { getSessionDate } from '../lib/dateUtils';
 
@@ -183,7 +183,10 @@ export default function SetupScreen() {
         notify_time: timeStr,
       });
 
-      // 2.5. Create initial diagnostic with mode-specific scores
+      // 2.5. Retrieve the created profile from Supabase
+      const profile = await getUser(profileId);
+
+      // 2.6. Create initial diagnostic with mode-specific scores
       const modeMap: Record<string, 'exploration' | 'immersion' | 'organization' | 'contribution' | 'vitality'> = {
         '探索': 'exploration',
         '没頭': 'immersion',
@@ -202,15 +205,18 @@ export default function SetupScreen() {
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // 4. Save to AsyncStorage
+      // 4. Save to AsyncStorage with proper key names
       const data: [string, string][] = [
         ['profile_id', profileId],
-        ['userName', formData.userName],
+        ['user_name', profile.name],
+        ['user_job_title', profile.job_title || ''],
+        ['user_hobbies', JSON.stringify(profile.hobbies || [])],
+        ['user_interests', JSON.stringify(profile.interests || [])],
+        ['user_current_mode', profile.current_mode || 'exploration'],
+        ['user_notify_time', profile.notify_time || timeStr],
+        // 追加で保存しておく（後方互換性のため）
         ['techStack', JSON.stringify(finalTech)],
-        ['hobbies', JSON.stringify(finalHobbies)],
         ['worries', JSON.stringify(finalWorries)],
-        ['selectedMode', formData.selectedMode],
-        ['notifTime', timeStr],
       ];
 
       await AsyncStorage.multiSet(data);
