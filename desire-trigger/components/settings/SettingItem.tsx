@@ -142,7 +142,6 @@ const styles = StyleSheet.create({
         color: Colors.secondary,
         fontSize: 12,
         marginTop: 4,
-        fontWeight: '300', // Thin as requested
     },
     value: {
         color: Colors.secondary,

@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
         color: Colors.primary,
         fontSize: 14,
         fontFamily: 'monospace', // Assuming a monospace font is available or system default
-        fontWeight: '900', // Thicker
-        letterSpacing: 2, // Wider spacing
+        fontWeight: 'bold',
+        letterSpacing: 1,
     },
 });
