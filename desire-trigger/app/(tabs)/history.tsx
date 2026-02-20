@@ -140,12 +140,6 @@ export default function HistoryScreen() {
         setCurrentMonth(newDate);
     };
 
-    // Check if the displayed month is the current real-world month
-    const isCurrentMonth = useMemo(() => {
-        const today = new Date();
-        return currentMonth.getMonth() === today.getMonth() && currentMonth.getFullYear() === today.getFullYear();
-    }, [currentMonth]);
-
     // Japanese format: YYYY年 M月
     const monthLabel = `${currentMonth.getFullYear()}年 ${currentMonth.getMonth() + 1}月`;
 
@@ -186,8 +180,7 @@ export default function HistoryScreen() {
 
                     <TouchableOpacity
                         onPress={handleNextMonth}
-                        disabled={isCurrentMonth}
-                        className={`p-2 bg-slate-800 rounded-full ${isCurrentMonth ? 'opacity-30' : ''}`}
+                        className="p-2 bg-slate-800 rounded-full"
                     >
                         <Feather name="chevron-right" size={24} color="#94a3b8" />
                     </TouchableOpacity>
@@ -205,6 +198,9 @@ export default function HistoryScreen() {
 
                 {/* Detail Section */}
                 <DayDetail selectedDay={selectedDayLog} />
+
+                {/* Motivation Section */}
+
 
             </ScrollView>
 
