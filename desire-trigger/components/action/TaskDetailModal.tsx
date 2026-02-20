@@ -13,14 +13,14 @@ interface TaskDetailModalProps {
 
 const { width, height } = Dimensions.get('window');
 
-const getModeLabel = (mode: string | undefined) => {
+const getModeLabel = (mode: string) => {
     switch (mode) {
         case 'EXPLORATION': return '探索';
         case 'IMMERSION': return '没頭';
         case 'ORGANIZATION': return '整理';
         case 'CONTRIBUTION': return '貢献';
         case 'REST': return '休息';
-        default: return mode || 'TEST';
+        default: return mode;
     }
 };
 
@@ -72,8 +72,8 @@ const MODE_COMPLETION_LABELS: Record<string, string[]> = {
     REST: ['充填'],
 };
 
-const getCompletionLabel = (mode: string | undefined, taskId: string) => {
-    const labels = MODE_COMPLETION_LABELS[mode || 'EXPLORATION'] || ['達成', '完了', '突破'];
+const getCompletionLabel = (mode: string, taskId: string) => {
+    const labels = MODE_COMPLETION_LABELS[mode] || ['達成', '完了', '突破'];
     let hash = 0;
     for (let i = 0; i < taskId.length; i++) {
         hash = taskId.charCodeAt(i) + ((hash << 5) - hash);

@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { HistoryLog } from '../../types';
-import { METRIC_COLORS, METRIC_LABELS } from '../../lib/constants';
+import { METRIC_COLORS, METRIC_LABELS } from '../../data/mock/historyData';
 import { Feather } from '@expo/vector-icons';
 
 interface DayDetailProps {
@@ -67,7 +67,7 @@ export default function DayDetail({ selectedDay }: DayDetailProps) {
                                     <Text className={`text-[10px] font-bold ${task.color === 'Core' ? 'text-blue-400' :
                                         task.color === 'Deep' ? 'text-purple-400' : 'text-green-400'
                                         }`}>
-                                        {(task.color || 'Quick').toUpperCase()}
+                                        {task.color.toUpperCase()}
                                     </Text>
                                 </View>
                             </View>

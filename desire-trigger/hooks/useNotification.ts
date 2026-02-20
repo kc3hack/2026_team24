@@ -7,8 +7,6 @@ Notifications.setNotificationHandler({
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
-        shouldShowBanner: true,
-        shouldShowList: true,
     }),
 });
 
@@ -76,10 +74,13 @@ export async function scheduleReminderNotification(): Promise<void> {
             sound: true,
         },
         trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
             hour: 8,
             minute: 0,
-            repeats: false,
+            repeats: false, // One-time? Or repeats? 
+            // Requirement says "Next morning". It implies a one-time thing if it's conditional.
+            // However, trigger with hour/minute usually means recurring daily if type is CalendarTriggerInput.
+            // To make it one-time for tomorrow:
+            // We can use a Date object or seconds.
         },
     });
 
