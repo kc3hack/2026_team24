@@ -76,17 +76,23 @@ export default function DayDetail({ selectedDayDetail, loading }: DayDetailProps
     const color = metricToColor[topMetricKey];
     const label = metricToJapanese[topMetricKey];
 
-    // タスクの難易度ラベルと色のマッピング
-    const levelToColor: Record<string, string> = {
-        'quick': '#10B981', // Green
-        'core': '#3B82F6',  // Blue
-        'deep': '#8B5CF6',  // Purple
-    };
-
+    // タスクの難易度ラベル
     const levelToLabel: Record<string, string> = {
         'quick': 'QUICK',
         'core': 'CORE',
         'deep': 'DEEP',
+    };
+
+    // タスクのカテゴリからパラメータの色へのマッピング
+    const categoryToColor: Record<string, string> = {
+        '探索系': metricToColor.exploration,
+        '集中系': metricToColor.immersion,
+        '没頭系': metricToColor.immersion,
+        '実行系': metricToColor.organization,
+        '整理系': metricToColor.organization,
+        '貢献系': metricToColor.contribution,
+        '休息系': metricToColor.vitality,
+        '元気系': metricToColor.vitality,
     };
 
     return (
@@ -119,7 +125,8 @@ export default function DayDetail({ selectedDayDetail, loading }: DayDetailProps
                     <Text className="text-gray-400 mb-2 font-bold text-xs">完了したタスク</Text>
                     {completedTasks && completedTasks.length > 0 ? (
                         completedTasks.map((task: DBTask) => {
-                            const taskColor = levelToColor[task.level] || '#94a3b8';
+                            // 各タスクのカテゴリに応じた色を使用
+                            const taskColor = categoryToColor[task.category] || metricToColor.exploration; // デフォルトは探索
                             const taskLabel = levelToLabel[task.level] || task.level.toUpperCase();
 
                             return (

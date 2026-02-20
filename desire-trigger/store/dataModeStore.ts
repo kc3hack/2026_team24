@@ -34,6 +34,15 @@ export const useDataModeStore = create<DataModeState>((set, get) => ({
     try {
       await AsyncStorage.setItem('data_mode', mode);
       set({ dataMode: mode });
+
+      // モード切り替え時に質問関連のデータをクリア（Mock/Live間の整合性を保つため）
+      await AsyncStorage.multiRemove([
+        'current_questions',
+        'current_answers',
+        'current_question_index',
+        'current_diagnostic_id',
+      ]);
+      console.log(`✅ Data mode switched to ${mode.toUpperCase()}. Questions cleared.`);
     } catch (e) {
       console.error('Failed to save data mode:', e);
     }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from 'expo-router';
@@ -13,6 +13,7 @@ import { getMonthlyDiagnostics, getAvailableMonths, getDayDetail, getAllDiagnost
 import { MetricKey } from '../../types';
 import { calcStreak } from '../../lib/calcStreak';
 import { useDataModeStore } from '../../store/dataModeStore';
+import { SpaceBackground } from '../../components/ui/SpaceBackground';
 
 // パラメータ名のマッピング（MetricKey → 日本語）
 const metricToJapanese: Record<MetricKey, string> = {
@@ -23,30 +24,10 @@ const metricToJapanese: Record<MetricKey, string> = {
     vitality: '元気',
 };
 
-// DiagnosticをHistoryLogに変換（成長率を計算してカラーを決定）
-const diagnosticToHistoryLog = (diagnostic: Diagnostic, previousDiagnostic?: Diagnostic): HistoryLog => {
-    let dominantMetricKey: MetricKey = diagnostic.dominant_metric;
-
-    // 前日のデータがある場合は成長率を計算
-    if (previousDiagnostic) {
-        const metrics: MetricKey[] = ['exploration', 'immersion', 'organization', 'contribution', 'vitality'];
-        let maxGrowth = -Infinity;
-        let growthMetric: MetricKey = diagnostic.dominant_metric;
-
-        metrics.forEach(metric => {
-            const currentValue = diagnostic[metric];
-            const previousValue = previousDiagnostic[metric];
-            const growth = currentValue - previousValue;
-
-            if (growth > maxGrowth) {
-                maxGrowth = growth;
-                growthMetric = metric;
-            }
-        });
-
-        // 成長率が最も高いメトリックを使用
-        dominantMetricKey = growthMetric;
-    }
+// DiagnosticをHistoryLogに変換（最高パラメータの色を決定）
+const diagnosticToHistoryLog = (diagnostic: Diagnostic): HistoryLog => {
+    // 最高値のパラメータを使用（diagnostic.dominant_metricには既に最高値が格納されている）
+    const dominantMetricKey: MetricKey = diagnostic.dominant_metric;
 
     return {
         date: diagnostic.date,
@@ -86,6 +67,15 @@ export default function HistoryScreen() {
 
     const loadAvailableMonths = async () => {
         try {
+            // MOCKモードの場合はモックデータから利用可能な月を生成
+            if (dataMode === 'mock') {
+                const { generateMockDiagnostics } = await import('../../constants/mockData');
+                const mockDiagnostics = generateMockDiagnostics();
+                const months = [...new Set(mockDiagnostics.map(d => d.date.substring(0, 7)))];
+                setAvailableMonths(months);
+                return;
+            }
+
             const profileId = await AsyncStorage.getItem('profile_id');
             if (!profileId) return;
 
@@ -99,6 +89,27 @@ export default function HistoryScreen() {
     const loadMonthData = async () => {
         try {
             setLoading(true);
+
+            // MOCKモードの場合はモックデータを使用
+            if (dataMode === 'mock') {
+                const { generateMockDiagnostics } = await import('../../constants/mockData');
+                const mockDiagnostics = generateMockDiagnostics();
+
+                const year = currentMonth.getFullYear();
+                const month = currentMonth.getMonth() + 1;
+
+                // 現在の月のデータのみフィルター
+                const monthDiagnostics = mockDiagnostics.filter(d => {
+                    const [y, m] = d.date.split('-').map(Number);
+                    return y === year && m === month;
+                });
+
+                const logs = monthDiagnostics.map(diagnostic => diagnosticToHistoryLog(diagnostic));
+                setHistoryData(logs);
+                setLoading(false);
+                return;
+            }
+
             const profileId = await AsyncStorage.getItem('profile_id');
             if (!profileId) return;
 
@@ -107,11 +118,8 @@ export default function HistoryScreen() {
 
             const diagnostics = await getMonthlyDiagnostics(profileId, year, month);
 
-            // 成長率計算のため、各診断に対して前日のデータを渡す
-            const logs = diagnostics.map((diagnostic, index) => {
-                const previousDiagnostic = index > 0 ? diagnostics[index - 1] : undefined;
-                return diagnosticToHistoryLog(diagnostic, previousDiagnostic);
-            });
+            // 各診断を履歴ログに変換
+            const logs = diagnostics.map(diagnostic => diagnosticToHistoryLog(diagnostic));
 
             setHistoryData(logs);
         } catch (e) {
@@ -177,26 +185,88 @@ export default function HistoryScreen() {
         return calcStreak(allDiagnostics);
     }, [allDiagnostics]);
 
+    // 月がアクセス可能かチェック（liveモード時のみ）
+    const isMonthAccessible = (year: number, month: number): boolean => {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1;
+
+        // 現在の月は常にアクセス可能
+        if (year === currentYear && month === currentMonth) return true;
+
+        // モックモードでは全月アクセス可
+        if (dataMode === 'mock') return true;
+
+        // その月に回答データが存在するか確認（availableMonthsを利用）
+        const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+        return availableMonths.includes(monthKey);
+    };
+
     const handlePrevMonth = () => {
         const newDate = new Date(currentMonth);
         newDate.setMonth(newDate.getMonth() - 1);
-        setCurrentMonth(newDate);
-        setSelectedDate(null); // 選択をリセット
+        const year = newDate.getFullYear();
+        const month = newDate.getMonth() + 1;
+
+        // 月がアクセス可能な場合のみ移動
+        if (isMonthAccessible(year, month)) {
+            setCurrentMonth(newDate);
+            setSelectedDate(null); // 選択をリセット
+        }
     };
 
     const handleNextMonth = () => {
+        const now = new Date();
+        const nowYear = now.getFullYear();
+        const nowMonth = now.getMonth() + 1;
+
         const newDate = new Date(currentMonth);
         newDate.setMonth(newDate.getMonth() + 1);
-        setCurrentMonth(newDate);
-        setSelectedDate(null); // 選択をリセット
+        const year = newDate.getFullYear();
+        const month = newDate.getMonth() + 1;
+
+        // 現在の月より先には進めない
+        if (year > nowYear || (year === nowYear && month > nowMonth)) {
+            return;
+        }
+
+        // 月がアクセス可能な場合のみ移動
+        if (isMonthAccessible(year, month)) {
+            setCurrentMonth(newDate);
+            setSelectedDate(null); // 選択をリセット
+        }
     };
 
     // Japanese format: YYYY年 M月
     const monthLabel = `${currentMonth.getFullYear()}年 ${currentMonth.getMonth() + 1}月`;
 
+    // 前月・次月ボタンの有効/無効を判定
+    const canGoPrev = (() => {
+        const prevMonth = new Date(currentMonth);
+        prevMonth.setMonth(prevMonth.getMonth() - 1);
+        return isMonthAccessible(prevMonth.getFullYear(), prevMonth.getMonth() + 1);
+    })();
+
+    const canGoNext = (() => {
+        const now = new Date();
+        const nextMonth = new Date(currentMonth);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        const year = nextMonth.getFullYear();
+        const month = nextMonth.getMonth() + 1;
+
+        // 現在の月より先には進めない
+        if (year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth() + 1)) {
+            return false;
+        }
+
+        return isMonthAccessible(year, month);
+    })();
+
     return (
-        <SafeAreaView className="flex-1 bg-slate-900">
-            <StatusBar style="light" />
+        <View style={styles.container}>
+            <SpaceBackground />
+            <SafeAreaView style={styles.safeArea}>
+                <StatusBar style="light" />
             <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
                 {/* Header with Streak */}
                 <View className="mb-8 flex-row justify-between items-end">
@@ -216,7 +286,9 @@ export default function HistoryScreen() {
                 <View className="flex-row items-center justify-between mb-6">
                     <TouchableOpacity
                         onPress={handlePrevMonth}
+                        disabled={!canGoPrev}
                         className="p-2 bg-slate-800 rounded-full"
+                        style={{ opacity: canGoPrev ? 1 : 0.3 }}
                     >
                         <Feather name="chevron-left" size={24} color="#94a3b8" />
                     </TouchableOpacity>
@@ -231,7 +303,9 @@ export default function HistoryScreen() {
 
                     <TouchableOpacity
                         onPress={handleNextMonth}
+                        disabled={!canGoNext}
                         className="p-2 bg-slate-800 rounded-full"
+                        style={{ opacity: canGoNext ? 1 : 0.3 }}
                     >
                         <Feather name="chevron-right" size={24} color="#94a3b8" />
                     </TouchableOpacity>
@@ -268,10 +342,22 @@ export default function HistoryScreen() {
                 onSelectMonth={(date) => {
                     setCurrentMonth(date);
                     // Optionally clear selected date when switching months
-                    // setSelectedDate(null); 
+                    // setSelectedDate(null);
                 }}
                 currentDate={currentMonth}
+                availableMonths={availableMonths}
             />
         </SafeAreaView>
+        </View>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#050510', // 宇宙背景に合わせた背景色
+    },
+    safeArea: {
+        flex: 1,
+    },
+});

@@ -51,6 +51,16 @@ export async function createInitialDiagnostic(
  * answersやスコアはまだ入れない
  */
 export async function createDiagnostic(profileId: string, date: string): Promise<string> {
+    // Mock mode check
+    const { useDataModeStore } = await import('../store/dataModeStore');
+    const { dataMode } = useDataModeStore.getState();
+
+    if (dataMode === 'mock') {
+        console.log('[MOCK MODE] Skipping diagnostic creation, returning mock ID');
+        // モックモードでは固定IDを返す（DB操作をスキップ）
+        return 'mock-diagnostic-id-' + date;
+    }
+
     // 仮の初期値を設定（後でUPDATE）
     const { data, error } = await supabase
         .from('diagnostics')
@@ -96,6 +106,12 @@ export async function markDiagnosticAnswered(
     diagnosticId: string,
     answers: QuestionAnswer[]
 ): Promise<void> {
+    // Mock modeの場合はSupabaseへの書き込みをスキップ
+    if (diagnosticId.startsWith('mock-')) {
+        console.log('✅ Mock mode: Skipping markDiagnosticAnswered');
+        return;
+    }
+
     const { error } = await supabase
         .from('diagnostics')
         .update({
@@ -119,6 +135,15 @@ export async function saveDiagnosticResult(
         advice?: any;
     }
 ): Promise<void> {
+    // Mock mode check
+    const { useDataModeStore } = await import('../store/dataModeStore');
+    const { dataMode } = useDataModeStore.getState();
+
+    if (dataMode === 'mock') {
+        console.log('[MOCK MODE] Skipping save diagnostic result');
+        return; // モックモードではDB操作をスキップ
+    }
+
     // dominant_metricを計算
     const dominantMetric = Object.entries(data.scores)
         .reduce((max, [key, value]) =>

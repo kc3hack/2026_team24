@@ -91,17 +91,34 @@ export default function SupernovaWelcome() {
 
   // 3. アニメーションシーケンスの開始
   const startSequence = async () => {
+    // デバッグモーダルを閉じる（遷移時に残らないように）
+    setDebugModalVisible(false);
+
     let next: string = '/(tabs)';
-    try {
-      // profile_idの存在確認（Supabaseプロフィールの有無）
-      const profileId = await AsyncStorage.getItem('profile_id');
-      if (!profileId) {
-        // プロフィール未作成 → セットアップへ
+
+    // MOCKモードの場合は初期セットアップをスキップ
+    if (dataMode === 'mock') {
+      // モックモード用のプロフィールIDを設定（有効なUUID形式）
+      // このUUIDはSupabaseに存在しないため、クエリは空の結果を返すがエラーは発生しない
+      try {
+        await AsyncStorage.setItem('profile_id', '00000000-0000-0000-0000-000000000000');
+      } catch (e) {
+        console.error('Failed to set mock profile_id:', e);
+      }
+      next = '/(tabs)';
+    } else {
+      // LIVEモードの場合は通常のチェック
+      try {
+        // profile_idの存在確認（Supabaseプロフィールの有無）
+        const profileId = await AsyncStorage.getItem('profile_id');
+        if (!profileId) {
+          // プロフィール未作成 → セットアップへ
+          next = '/setup';
+        }
+      } catch (e) {
+        console.error('Failed to check profile_id:', e);
         next = '/setup';
       }
-    } catch (e) {
-      console.error('Failed to check profile_id:', e);
-      next = '/setup';
     }
 
     try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch (e) { }
@@ -295,6 +312,11 @@ export default function SupernovaWelcome() {
                   thumbColor={dataMode === 'live' ? '#FFF' : '#f4f3f4'}
                 />
               </View>
+              <Text style={styles.modalDescription}>
+                {dataMode === 'mock'
+                  ? 'モックデータを使用。初期セットアップをスキップして直接ログインできます。'
+                  : '実際のSupabaseデータを使用。初回は初期セットアップが必要です。'}
+              </Text>
             </View>
 
             {/* Full Reset */}
@@ -390,6 +412,12 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  modalDescription: {
+    color: '#999',
+    fontSize: 11,
+    marginTop: 8,
+    lineHeight: 16,
   },
   modalButton: {
     width: '100%',

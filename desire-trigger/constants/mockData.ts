@@ -17,22 +17,138 @@ export const MOCK_USER = {
 };
 
 // ===========================
-// 質問データ (5問)
+// 質問データ (5問) - 焼肉テーマ
 // ===========================
 
-export type MockQuestion = {
-    id: number;
-    text: string;
-    category: string;
+import { DBQuestion } from '../types';
+
+export const MOCK_QUESTIONS: DBQuestion[] = [
+    {
+        id: 1,
+        text: "今日は新しい焼肉店を探索したいと思いませんか？",
+        metric_effects: { exploration: 1, immersion: 0, organization: 0, contribution: 0, vitality: 0 },
+        weight: 1.0
+    },
+    {
+        id: 2,
+        text: "焼肉を一心不乱に食べ続けたい気分ですか？",
+        metric_effects: { exploration: 0, immersion: 1, organization: 0, contribution: 0, vitality: 0 },
+        weight: 1.0
+    },
+    {
+        id: 3,
+        text: "焼肉の食べる順番を計画的に決めたいですか？",
+        metric_effects: { exploration: 0, immersion: 0, organization: 1, contribution: 0, vitality: 0 },
+        weight: 1.0
+    },
+    {
+        id: 4,
+        text: "焼肉を誰かに奢ってあげたいと思いますか？",
+        metric_effects: { exploration: 0, immersion: 0, organization: 0, contribution: 1, vitality: 0 },
+        weight: 1.0
+    },
+    {
+        id: 5,
+        text: "焼肉を食べて元気になりたいですか？",
+        metric_effects: { exploration: 0, immersion: 0, organization: 0, contribution: 0, vitality: 1 },
+        weight: 1.0
+    },
+];
+
+// ===========================
+// スコアデータ (7つの欲求)
+// ===========================
+
+export const MOCK_SCORES = {
+    recovery: 75,
+    recognition: 40,
+    security: 60,
+    challenge: 80,
+    stimulation: 50,
+    connection: 65,
+    creation: 55,
 };
 
-export const MOCK_QUESTIONS: MockQuestion[] = [
-    { id: 1, text: "今日は静かな場所でゆっくり過ごしたいと思っていませんか?", category: "回復" },
-    { id: 2, text: "疲れを癒したい気分ですか?", category: "回復" },
-    { id: 3, text: "今日は誰かに認められたい気持ちがありますか?", category: "承認" },
-    { id: 4, text: "自分の頑張りを誰かに見てほしいと思っていませんか?", category: "承認" },
-    { id: 5, text: "今日、誰かと話したい気持ちがありましたか?", category: "孤独解消" },
+// ===========================
+// 行動提案データ
+// ===========================
+
+export const MOCK_ACTIONS = [
+    {
+        id: 1,
+        title: "近くの公園で15分散歩",
+        description: "新鮮な空気を吸いながら、軽く体を動かすことで回復欲求を満たせます",
+        duration: 15,
+        category: "回復",
+        why: "自然との接触がストレス軽減に効果的",
+    },
+    {
+        id: 2,
+        title: "好きな音楽を聴く",
+        description: "好きな音楽を聴いてリラックスしましょう",
+        duration: 10,
+        category: "回復",
+        why: "音楽は心を落ち着かせる効果があります",
+    },
+    {
+        id: 3,
+        title: "友人に連絡する",
+        description: "気心の知れた友人にメッセージを送ってみましょう",
+        duration: 5,
+        category: "孤独解消",
+        why: "社会的な繋がりは幸福感を高めます",
+    },
 ];
+
+// ===========================
+// レポート・分析データ
+// ===========================
+
+export const MOCK_REPORT = {
+    // レーダーチャートの各軸スコア（0〜100）
+    scores: {
+        recovery: 72,      // 回復
+        approval: 48,      // 承認
+        security: 55,      // 安心
+        challenge: 63,     // 挑戦
+        stimulation: 40,   // 刺激
+        connection: 58,    // 孤独解消
+        creation: 81,      // 創造
+    },
+
+    // 状態分析コメント（AI生成の代替テキスト）
+    analysisComment:
+        'あなたは現在、創造的な活動への欲求が非常に高い状態です。' +
+        '一方で刺激や承認への欲求がやや低めなので、' +
+        '新しいチャレンジや誰かと一緒に取り組む活動が有効です。',
+
+    // 最も高いカテゴリ
+    topCategory: '創造',
+    topScore: 81,
+
+    // 直近7日間の推移（折れ線グラフ用）
+    history: [
+        { date: '2/15', recovery: 60, creation: 70 },
+        { date: '2/16', recovery: 65, creation: 73 },
+        { date: '2/17', recovery: 68, creation: 75 },
+        { date: '2/18', recovery: 70, creation: 78 },
+        { date: '2/19', recovery: 72, creation: 80 },
+        { date: '2/20', recovery: 71, creation: 81 },
+        { date: '2/21', recovery: 72, creation: 81 },
+    ],
+};
+
+// ===========================
+// 設定データ（プロフィール）
+// ===========================
+
+export const MOCK_SETTINGS = {
+    name: 'Yakiniku Tabetai',
+    favoriteTech: 'セキュリティ, AI・ML',
+    hobbies: '創作, 音楽',
+    worries: 'お金, 評価・承認',
+    notificationTime: '21:00',
+};
 
 // ===========================
 // パラメータスコア
@@ -150,7 +266,7 @@ export const MOCK_TASK_SETS: TaskSet[] = [
 ];
 
 // ===========================
-// 診断履歴データ (過去30日分、連続23日のストリーク)
+// 診断履歴データ (過去6ヶ月分、複数の月にまたがるデータ)
 // ===========================
 
 /**
@@ -160,34 +276,49 @@ export const MOCK_TASK_SETS: TaskSet[] = [
  * - immersion: 徐々に上昇（40 → 70）
  * - organization: 安定（65前後）
  * - contribution: 緩やかに上昇（50 → 65）
+ *
+ * 過去6ヶ月分のデータを生成し、いくつかの期間は空白にしてリアルさを追加
  */
 export const generateMockDiagnostics = (): Diagnostic[] => {
     const diagnostics: Diagnostic[] = [];
     const baseDate = new Date();
 
-    // 30日分のデータを生成（連続23日 + 7日の空き）
-    for (let i = 0; i < 30; i++) {
+    // 過去180日分を生成（約6ヶ月）
+    const totalDays = 180;
+
+    // 空白期間の定義（リアルなデータにするため）
+    // [開始日インデックス, 終了日インデックス]
+    const gapPeriods = [
+        [0, 7],      // 最初の7日は空き
+        [60, 67],    // 約2ヶ月前に1週間の空き
+        [120, 125],  // 約4ヶ月前に5日の空き
+    ];
+
+    for (let i = 0; i < totalDays; i++) {
         const date = new Date(baseDate);
-        date.setDate(date.getDate() - (29 - i)); // 30日前から今日まで
+        date.setDate(date.getDate() - (totalDays - 1 - i)); // 180日前から今日まで
         const dateStr = date.toISOString().split('T')[0];
 
-        // 最初の7日は空き（ストリークが途切れている）
-        if (i < 7) {
+        // 空白期間はスキップ
+        const isInGap = gapPeriods.some(([start, end]) => i >= start && i <= end);
+        if (isInGap) {
             continue;
         }
 
-        // 進行度（0〜1）
-        const progress = (i - 7) / 22; // 23日間の進行度
+        // 全体の進行度（0〜1）
+        const progress = i / totalDays;
 
-        // リアルな変動を追加
-        const vitalityBase = 50 + progress * 35; // 50 → 85
-        const explorationBase = 60 + Math.sin(progress * Math.PI * 3) * 15; // 波打つ
-        const immersionBase = 40 + progress * 30; // 40 → 70
-        const organizationBase = 65 + Math.sin(progress * Math.PI * 2) * 8; // 65前後で安定
-        const contributionBase = 50 + progress * 15; // 50 → 65
+        // リアルな変動を追加（より長期的なトレンド）
+        const vitalityBase = 50 + progress * 35 + Math.sin(progress * Math.PI * 6) * 10; // 50 → 85 + 波
+        const explorationBase = 60 + Math.sin(progress * Math.PI * 8) * 15; // 波打つ
+        const immersionBase = 40 + progress * 30 + Math.sin(progress * Math.PI * 4) * 8; // 40 → 70 + 波
+        const organizationBase = 65 + Math.sin(progress * Math.PI * 5) * 10; // 65前後で波打つ
+        const contributionBase = 50 + progress * 20 + Math.sin(progress * Math.PI * 3) * 8; // 50 → 70 + 波
 
-        // 少しランダム性を追加（±3）
-        const rand = () => (Math.random() - 0.5) * 6;
+        // 少しランダム性を追加（±5）
+        // 日付ベースのシード値を使用して、同じ日は同じ値になるようにする
+        const seed = i * 12345;
+        const rand = () => ((seed % 100) / 100 - 0.5) * 10;
 
         const exploration = Math.max(0, Math.min(100, explorationBase + rand()));
         const immersion = Math.max(0, Math.min(100, immersionBase + rand()));

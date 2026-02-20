@@ -8,10 +8,10 @@ import { useDataModeStore } from '../store/dataModeStore';
 // カテゴリからモードへのマッピング
 const categoryToMode: Record<string, string> = {
     '探索系': 'EXPLORATION',
-    '集中系': 'IMMERSION',
-    '実行系': 'ORGANIZATION',
+    '没頭系': 'IMMERSION',
+    '整理系': 'ORGANIZATION',
     '貢献系': 'CONTRIBUTION',
-    '休息系': 'REST',
+    '元気系': 'VITALITY',
 };
 
 // レベルから時間を推定

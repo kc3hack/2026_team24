@@ -2,12 +2,72 @@ import { supabase } from './client';
 import { HomeData, Diagnostic, MetricKey } from '../types';
 import { getUser } from './profiles';
 import { getLatestDiagnostic } from './diagnostics';
+import { useDataModeStore } from '../store/dataModeStore';
 
 /**
  * ホーム画面用のデータを一括取得
  */
 export async function getHomeData(profileId: string, sessionDate: string): Promise<HomeData> {
     try {
+        // Mock mode check
+        const { dataMode } = useDataModeStore.getState();
+
+        if (dataMode === 'mock') {
+            console.log('[MOCK MODE] Using mock home data');
+            const { MOCK_SETTINGS, generateMockDiagnostics } = await import('../constants/mockData');
+
+            const mockDiagnostics = generateMockDiagnostics();
+            const latestDiagnostic = mockDiagnostics[0] || null;
+
+            // モックモードでは常に質問回答可能にする
+            const todayAnswered = false;
+
+            // Task summary (mock values)
+            const taskSummary = {
+                total: 3,
+                completed: 1,
+            };
+
+            // Calculate top parameter from latest diagnostic
+            let topParameter: { name: string; key: MetricKey; score: number } | null = null;
+            if (latestDiagnostic) {
+                const metrics: Record<MetricKey, number> = {
+                    exploration: latestDiagnostic.exploration,
+                    immersion: latestDiagnostic.immersion,
+                    organization: latestDiagnostic.organization,
+                    contribution: latestDiagnostic.contribution,
+                    vitality: latestDiagnostic.vitality,
+                };
+
+                const metricNames: Record<MetricKey, string> = {
+                    exploration: '探索',
+                    immersion: '没頭',
+                    organization: '整理',
+                    contribution: '貢献',
+                    vitality: '元気',
+                };
+
+                const topMetric = Object.entries(metrics)
+                    .reduce((max, [key, value]) =>
+                        value > max.value ? { key: key as MetricKey, value } : max,
+                        { key: 'exploration' as MetricKey, value: -Infinity }
+                    );
+
+                topParameter = {
+                    name: metricNames[topMetric.key],
+                    key: topMetric.key,
+                    score: Math.round(topMetric.value),
+                };
+            }
+
+            return {
+                todayAnswered,
+                userName: MOCK_SETTINGS.name,
+                latestDiagnostic,
+                taskSummary,
+                topParameter,
+            };
+        }
         // 1. ユーザー名を取得
         const profile = await getUser(profileId);
 
