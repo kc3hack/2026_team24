@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useTasks } from '../../hooks/useTasks';
 
 type Props = {
     totalTasks: number;
@@ -13,28 +14,47 @@ type Props = {
 export default function ActionSummaryCard({ totalTasks, completedTasks, isAllCompleted, showTooltip }: Props) {
     const router = useRouter();
     const [timeLeft, setTimeLeft] = useState("");
+    const { taskSets } = useTasks();
 
     useEffect(() => {
         const updateTime = () => {
-            const now = new Date();
-            const end = new Date();
-            end.setHours(23, 59, 59, 999);
-            const diff = end.getTime() - now.getTime();
-
-            if (diff <= 0) {
-                setTimeLeft("0時間0分");
+            // 最も古いタスクセット（index 0）のdeadlineを使用
+            if (!taskSets || taskSets.length === 0) {
+                setTimeLeft("--時間--分");
                 return;
             }
 
+            const oldestSet = taskSets[0];
+            if (!oldestSet || oldestSet.tasks.length === 0) {
+                setTimeLeft("--時間--分");
+                return;
+            }
+
+            const firstTask = oldestSet.tasks[0];
+            if (!firstTask.deadline) {
+                setTimeLeft("--時間--分");
+                return;
+            }
+
+            const now = new Date();
+            const deadline = new Date(firstTask.deadline);
+            const diff = Math.max(0, deadline.getTime() - now.getTime());
+
             const h = Math.floor(diff / (1000 * 60 * 60));
             const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            setTimeLeft(`${h}時間${m}分`);
+
+            // 形式: 「残り X時間 Y分」（1時間以上）/ 「残り Y分」（1時間未満）
+            if (h > 0) {
+                setTimeLeft(`${h}時間 ${m}分`);
+            } else {
+                setTimeLeft(`${m}分`);
+            }
         };
 
         updateTime();
-        const interval = setInterval(updateTime, 60000); // Create a simple minute ticker
+        const interval = setInterval(updateTime, 1000); // 1秒ごとに更新
         return () => clearInterval(interval);
-    }, []);
+    }, [taskSets]);
 
     const borderColor = isAllCompleted ? 'border-green-500/50' : 'border-gray-800';
     const textColor = isAllCompleted ? 'text-green-500' : 'text-white';

@@ -1,6 +1,7 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { MetricKey } from '../../types';
 
 // Mock data for now, or props?
 // Spec says: Dominant metric only.
@@ -8,12 +9,23 @@ import { useRouter } from 'expo-router';
 
 type Props = {
     dominantMetric: string;
+    dominantMetricKey?: MetricKey;
     value: number; // 0-100
     showTooltip?: boolean;
 };
 
-export default function AnalysisSummaryCard({ dominantMetric, value, showTooltip }: Props) {
+// パラメータ別の色
+const metricColors: Record<MetricKey, string> = {
+    exploration: '#3B82F6', // Blue
+    immersion: '#10B981',   // Emerald
+    organization: '#8B5CF6', // Violet
+    contribution: '#F97316', // Orange
+    vitality: '#06B6D4',    // Cyan
+};
+
+export default function AnalysisSummaryCard({ dominantMetric, dominantMetricKey, value, showTooltip }: Props) {
     const router = useRouter();
+    const metricColor = dominantMetricKey ? metricColors[dominantMetricKey] : '#ffffff';
 
     return (
         <View className="bg-gray-900 p-5 rounded-xl border border-gray-800 mb-4" style={{ position: 'relative', zIndex: 1 }}>
@@ -29,8 +41,8 @@ export default function AnalysisSummaryCard({ dominantMetric, value, showTooltip
             </View>
 
             <View className="flex-row items-end mb-2">
-                <Text className="text-white text-3xl font-bold mr-3">{dominantMetric}</Text>
-                <Text className="text-[#4ade80] text-2xl font-bold">{value}</Text>
+                <Text style={{ color: metricColor, fontSize: 28, fontWeight: 'bold', marginRight: 12 }}>{dominantMetric}</Text>
+                <Text className="text-[#4ade80] text-2xl font-bold">{Math.round(value)}</Text>
                 <Text className="text-gray-500 text-sm mb-1 ml-1">/ 100</Text>
             </View>
 

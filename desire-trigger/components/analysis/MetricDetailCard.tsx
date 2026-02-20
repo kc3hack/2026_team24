@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
+import { Diagnostic } from '../../types';
 
 // Metric Types (Should ideally be shared, but defining here for now)
 export type MetricKey = 'exploration' | 'immersion' | 'refactor' | 'contribution' | 'idle';
@@ -76,10 +77,49 @@ export const detailedMetrics: Record<MetricKey, MetricDetail> = {
 
 interface MetricDetailCardProps {
     metricKey: MetricKey;
+    diagnostic?: Diagnostic | null;
 }
 
-export default function MetricDetailCard({ metricKey }: MetricDetailCardProps) {
+// スコアに応じた定型アドバイス
+const getDefaultAdvice = (score: number): string => {
+    if (score >= 70) {
+        return 'この分野は好調です。強みを活かした行動を心がけましょう。';
+    } else if (score >= 40) {
+        return 'バランスが取れています。少し意識を向けることでさらに伸びます。';
+    } else {
+        return '回復が必要なサインです。無理せず改善を心がけましょう。';
+    }
+};
+
+export default function MetricDetailCard({ metricKey, diagnostic }: MetricDetailCardProps) {
     const detail = detailedMetrics[metricKey];
+
+    // メトリックキーのマッピング（refactor→organization, idle→vitality）
+    const metricKeyMap: Record<MetricKey, keyof Diagnostic> = {
+        exploration: 'exploration',
+        immersion: 'immersion',
+        refactor: 'organization',
+        contribution: 'contribution',
+        idle: 'vitality',
+    };
+
+    // 実際のスコアとadviceを取得
+    let actualValue = detail.value; // デフォルト値
+    let actualAdvice = detail.advice; // デフォルトアドバイス
+
+    if (diagnostic) {
+        const dbKey = metricKeyMap[metricKey];
+        actualValue = Math.round(diagnostic[dbKey] as number); // 表示は整数
+
+        // adviceがjsonbの場合、該当メトリックのadviceを取得
+        if (diagnostic.advice && typeof diagnostic.advice === 'object') {
+            const adviceObj = diagnostic.advice as Record<string, string>;
+            const adviceKey = dbKey; // exploration, immersion, etc.
+            actualAdvice = adviceObj[adviceKey] || getDefaultAdvice(actualValue);
+        } else {
+            actualAdvice = getDefaultAdvice(actualValue);
+        }
+    }
 
     // Animation
     const opacity = useSharedValue(0);
@@ -112,23 +152,14 @@ export default function MetricDetailCard({ metricKey }: MetricDetailCardProps) {
                 </View>
                 <View style={styles.scoreContainer}>
                     <Text style={styles.scoreLabel}>Score</Text>
-                    <Text style={[styles.scoreValue, { color: detail.color }]}>{detail.value}</Text>
+                    <Text style={[styles.scoreValue, { color: detail.color }]}>{actualValue}</Text>
                 </View>
             </View>
 
             {/* Advice Section */}
             <View style={[styles.adviceContainer, { backgroundColor: detail.color + '10', borderLeftColor: detail.color }]}>
                 <Text style={styles.adviceTitle}>💡 Advice</Text>
-                <Text style={styles.adviceText}>{detail.advice}</Text>
-            </View>
-
-            {/* Tags */}
-            <View style={styles.tagsContainer}>
-                {detail.tags.map((tag, index) => (
-                    <View key={index} style={[styles.tag, { borderColor: detail.color + '40' }]}>
-                        <Text style={[styles.tagText, { color: detail.color }]}>#{tag}</Text>
-                    </View>
-                ))}
+                <Text style={styles.adviceText}>{actualAdvice}</Text>
             </View>
         </Animated.View>
     );

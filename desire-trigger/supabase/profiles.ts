@@ -1,12 +1,11 @@
-
 import { supabase } from './client';
-import { Profile, OnboardingInput } from '../types';
+import { DBProfile, OnboardingInput } from '../types';
 
 /**
- * 初期セットアップ完了時（ホームへ進むボタンを押したとき）
- * 一度だけ呼ぶ。返ってきたprofile_idをAsyncStorageに保存する。
+ * 初期セットアップ完了時
+ * プロフィールを作成してprofile_idを返す
  */
-export async function saveProfile(data: OnboardingInput): Promise<string> {
+export async function createUser(data: OnboardingInput): Promise<string> {
     const { data: insertedData, error } = await supabase
         .from('profiles')
         .insert([
@@ -18,14 +17,13 @@ export async function saveProfile(data: OnboardingInput): Promise<string> {
                 interests: data.interests,
                 current_mode: data.current_mode,
                 notify_time: data.notify_time,
-                // created_at, updated_at are handled by default
             }
         ])
         .select('id')
         .single();
 
     if (error) {
-        throw new Error(`Failed to save profile: ${error.message}`);
+        throw new Error(`Failed to create user: ${error.message}`);
     }
 
     return insertedData.id;
@@ -33,11 +31,8 @@ export async function saveProfile(data: OnboardingInput): Promise<string> {
 
 /**
  * プロフィール情報全体を取得
- * - ホーム画面起動時
- * - 設定モーダル起動時
- * - Edge Function呼び出し時
  */
-export async function getProfile(profileId: string): Promise<Profile> {
+export async function getUser(profileId: string): Promise<DBProfile> {
     const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -45,16 +40,16 @@ export async function getProfile(profileId: string): Promise<Profile> {
         .single();
 
     if (error) {
-        throw new Error(`Failed to get profile: ${error.message}`);
+        throw new Error(`Failed to get user: ${error.message}`);
     }
 
-    return data as Profile;
+    return data as DBProfile;
 }
 
 /**
- * 設定画面から更新（job_title / notify_time など）
+ * プロフィール更新
  */
-export async function updateProfile(profileId: string, data: Partial<Profile>): Promise<void> {
+export async function updateUser(profileId: string, data: Partial<DBProfile>): Promise<void> {
     const { error } = await supabase
         .from('profiles')
         .update({
@@ -64,6 +59,6 @@ export async function updateProfile(profileId: string, data: Partial<Profile>): 
         .eq('id', profileId);
 
     if (error) {
-        throw new Error(`Failed to update profile: ${error.message}`);
+        throw new Error(`Failed to update user: ${error.message}`);
     }
 }

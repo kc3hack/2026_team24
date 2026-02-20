@@ -1,81 +1,194 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import StatusHeatmap from '../../components/history/StatusHeatmap';
 import DayDetail from '../../components/history/DayDetail';
 import MonthSelectorModal from '../../components/history/MonthSelectorModal';
-import { generateYearData } from '../../data/mock/historyData';
-import { HistoryLog } from '../../types';
+import { HistoryLog, Diagnostic, DayDetail as DayDetailType } from '../../types';
+import { getMonthlyDiagnostics, getAvailableMonths, getDayDetail, getAllDiagnostics } from '../../supabase/diagnostics';
+import { MetricKey } from '../../types';
+import { calcStreak } from '../../lib/calcStreak';
+import { useDataModeStore } from '../../store/dataModeStore';
+
+// パラメータ名のマッピング（MetricKey → 日本語）
+const metricToJapanese: Record<MetricKey, string> = {
+    exploration: '探索',
+    immersion: '没頭',
+    organization: '整理',
+    contribution: '貢献',
+    vitality: '元気',
+};
+
+// DiagnosticをHistoryLogに変換（成長率を計算してカラーを決定）
+const diagnosticToHistoryLog = (diagnostic: Diagnostic, previousDiagnostic?: Diagnostic): HistoryLog => {
+    let dominantMetricKey: MetricKey = diagnostic.dominant_metric;
+
+    // 前日のデータがある場合は成長率を計算
+    if (previousDiagnostic) {
+        const metrics: MetricKey[] = ['exploration', 'immersion', 'organization', 'contribution', 'vitality'];
+        let maxGrowth = -Infinity;
+        let growthMetric: MetricKey = diagnostic.dominant_metric;
+
+        metrics.forEach(metric => {
+            const currentValue = diagnostic[metric];
+            const previousValue = previousDiagnostic[metric];
+            const growth = currentValue - previousValue;
+
+            if (growth > maxGrowth) {
+                maxGrowth = growth;
+                growthMetric = metric;
+            }
+        });
+
+        // 成長率が最も高いメトリックを使用
+        dominantMetricKey = growthMetric;
+    }
+
+    return {
+        date: diagnostic.date,
+        hasQuestions: true,
+        hasTasks: true,
+        dominantMetric: metricToJapanese[dominantMetricKey],
+        score: Math.round(Math.max(
+            diagnostic.exploration,
+            diagnostic.immersion,
+            diagnostic.organization,
+            diagnostic.contribution,
+            diagnostic.vitality
+        )),
+    };
+};
 
 export default function HistoryScreen() {
-    // Default to the current month or the latest data month
     const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [isMonthModalVisible, setIsMonthModalVisible] = useState(false);
+    const [historyData, setHistoryData] = useState<HistoryLog[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+    const [selectedDayDetail, setSelectedDayDetail] = useState<DayDetailType | null>(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [allDiagnostics, setAllDiagnostics] = useState<Diagnostic[]>([]);
 
-    // Memoize data generation to avoid re-generating on every render
-    const historyData = useMemo(() => generateYearData(), []);
+    const { dataMode } = useDataModeStore();
 
-    const selectedDayLog = useMemo(() => {
-        if (!selectedDate) return null;
-        return historyData.find(log => log.date === selectedDate) || null;
-    }, [selectedDate, historyData]);
+    useFocusEffect(
+        useCallback(() => {
+            loadAvailableMonths();
+            loadMonthData();
+            loadAllDiagnostics(); // ストリーク計算用
+        }, [currentMonth])
+    );
 
-    const handleDayPress = (day: HistoryLog) => {
-        setSelectedDate(day.date);
+    const loadAvailableMonths = async () => {
+        try {
+            const profileId = await AsyncStorage.getItem('profile_id');
+            if (!profileId) return;
+
+            const months = await getAvailableMonths(profileId);
+            setAvailableMonths(months);
+        } catch (e) {
+            console.error('Failed to load available months:', e);
+        }
     };
 
-    // Calculate current streak
-    const currentStreak = useMemo(() => {
-        const sortedData = [...historyData].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+    const loadMonthData = async () => {
+        try {
+            setLoading(true);
+            const profileId = await AsyncStorage.getItem('profile_id');
+            if (!profileId) return;
 
-        let streak = 0;
-        let checkDate = new Date(today);
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth() + 1;
 
-        // Check if today has an entry, if not, check yesterday to start streak
-        // Simplified logic: strict consecutive days in data
-        // Need to handle missing days in mock data -> break streak
+            const diagnostics = await getMonthlyDiagnostics(profileId, year, month);
 
-        // Find if today exists
-        const todayStr = today.toISOString().split('T')[0];
-        const hasToday = sortedData.some(d => d.date === todayStr);
+            // 成長率計算のため、各診断に対して前日のデータを渡す
+            const logs = diagnostics.map((diagnostic, index) => {
+                const previousDiagnostic = index > 0 ? diagnostics[index - 1] : undefined;
+                return diagnosticToHistoryLog(diagnostic, previousDiagnostic);
+            });
 
-        // If today is missing, we check if yesterday exists, if so streak continues from yesterday
-        // If today exists, streak includes today.
-
-        let currentDatePointer = new Date(today);
-        if (!hasToday) {
-            currentDatePointer.setDate(currentDatePointer.getDate() - 1);
+            setHistoryData(logs);
+        } catch (e) {
+            console.error('Failed to load month data:', e);
+            setHistoryData([]);
+        } finally {
+            setLoading(false);
         }
+    };
 
-        while (true) {
-            const dateStr = currentDatePointer.toISOString().split('T')[0];
-            const hasLog = sortedData.some(d => d.date === dateStr);
-
-            if (hasLog) {
-                streak++;
-                currentDatePointer.setDate(currentDatePointer.getDate() - 1);
-            } else {
-                break;
+    const loadAllDiagnostics = async () => {
+        try {
+            // MOCKモードの場合はモックデータを使用
+            if (dataMode === 'mock') {
+                const { generateMockDiagnostics } = await import('../../constants/mockData');
+                const mockDiagnostics = generateMockDiagnostics();
+                setAllDiagnostics(mockDiagnostics);
+                return;
             }
+
+            const profileId = await AsyncStorage.getItem('profile_id');
+            if (!profileId) return;
+
+            // 全診断データを取得（ストリーク計算用）
+            const diagnostics = await getAllDiagnostics(profileId);
+            setAllDiagnostics(diagnostics);
+        } catch (e) {
+            console.error('Failed to load all diagnostics:', e);
+            setAllDiagnostics([]);
         }
-        return streak;
-    }, [historyData]);
+    };
+
+    const handleDayPress = async (day: HistoryLog) => {
+        setSelectedDate(day.date);
+        setDetailLoading(true);
+        setSelectedDayDetail(null);
+
+        try {
+            // MOCKモードの場合はモックデータを使用
+            if (dataMode === 'mock') {
+                const { generateMockDayDetail } = await import('../../constants/mockData');
+                const mockDetail = generateMockDayDetail(day.date);
+                setSelectedDayDetail(mockDetail);
+                setDetailLoading(false);
+                return;
+            }
+
+            const profileId = await AsyncStorage.getItem('profile_id');
+            if (!profileId) return;
+
+            // 実際のタスクデータを取得
+            const detail = await getDayDetail(profileId, day.date);
+            setSelectedDayDetail(detail);
+        } catch (e) {
+            console.error('Failed to load day detail:', e);
+        } finally {
+            setDetailLoading(false);
+        }
+    };
+
+    // Calculate current streak using calcStreak
+    const currentStreak = useMemo(() => {
+        return calcStreak(allDiagnostics);
+    }, [allDiagnostics]);
 
     const handlePrevMonth = () => {
         const newDate = new Date(currentMonth);
         newDate.setMonth(newDate.getMonth() - 1);
         setCurrentMonth(newDate);
+        setSelectedDate(null); // 選択をリセット
     };
 
     const handleNextMonth = () => {
         const newDate = new Date(currentMonth);
         newDate.setMonth(newDate.getMonth() + 1);
         setCurrentMonth(newDate);
+        setSelectedDate(null); // 選択をリセット
     };
 
     // Japanese format: YYYY年 M月
@@ -126,16 +239,22 @@ export default function HistoryScreen() {
 
                 {/* Heatmap Section */}
                 <View className="mb-8 min-h-[300px]">
-                    <StatusHeatmap
-                        data={historyData}
-                        displayMonth={currentMonth}
-                        onDayPress={handleDayPress}
-                        selectedDate={selectedDate}
-                    />
+                    {loading ? (
+                        <View className="items-center justify-center py-20">
+                            <ActivityIndicator size="large" color="#3B82F6" />
+                        </View>
+                    ) : (
+                        <StatusHeatmap
+                            data={historyData}
+                            displayMonth={currentMonth}
+                            onDayPress={handleDayPress}
+                            selectedDate={selectedDate}
+                        />
+                    )}
                 </View>
 
                 {/* Detail Section */}
-                <DayDetail selectedDay={selectedDayLog} />
+                {!loading && <DayDetail selectedDayDetail={selectedDayDetail} loading={detailLoading} />}
 
                 {/* Motivation Section */}
 

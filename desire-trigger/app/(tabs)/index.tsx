@@ -1,11 +1,13 @@
 import React, { useState, useCallback } from 'react';
-import { View, ScrollView, Modal, Pressable, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, ScrollView, Text, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Haptics from 'expo-haptics';
-import { Feather } from '@expo/vector-icons';
-import { useMockStore } from '../../store/mockStore';
+import { getHomeData } from '../../supabase/home';
+import { getSessionDate } from '../../lib/dateUtils';
+import { getRandomQuestions } from '../../supabase/questions';
+import { createDiagnostic } from '../../supabase/diagnostics';
+import { HomeData } from '../../types';
 
 // Components
 import GreetingHeader from '../../components/home/GreetingHeader';
@@ -16,21 +18,14 @@ import ActionSummaryCard from '../../components/home/ActionSummaryCard';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { resetQuestions } = useMockStore();
 
   // State
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState<string>("...");
-  const [hasDiagnosedEver, setHasDiagnosedEver] = useState(false);
-  const [hasDiagnosedToday, setHasDiagnosedToday] = useState(false);
-  const [allTasksCompleted, setAllTasksCompleted] = useState(false);
+  const [homeData, setHomeData] = useState<HomeData | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Tooltip State
   const [showTooltip, setShowTooltip] = useState(false);
-
-  // Debug State
-  const [debugModalVisible, setDebugModalVisible] = useState(false);
-  const [debugStatus, setDebugStatus] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -41,36 +36,50 @@ export default function HomeScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
 
-      // ... (existing data loading)
+      // 1. profile_idを取得
+      const profileId = await AsyncStorage.getItem('profile_id');
+      if (!profileId) {
+        throw new Error('プロフィールが見つかりません');
+      }
 
-      // 2. Diagnosis Status
-      const lastDate = await AsyncStorage.getItem('lastQuestionDate');
+      // 2. セッション日付を取得
+      const sessionDate = await getSessionDate();
 
-      // Match logic with complete.tsx (Local Time)
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const todayStr = `${year}-${month}-${day}`;
+      // 3. ホームデータを取得
+      const data = await getHomeData(profileId, sessionDate);
+      setHomeData(data);
 
-      const isTodayDiagnosed = lastDate === todayStr;
+      // 4. 今日まだ回答していない場合：質問を取得して準備
+      if (!data.todayAnswered) {
+        // 既に質問が準備済みかチェック
+        const existingQuestions = await AsyncStorage.getItem('current_questions');
+        const existingDiagnosticId = await AsyncStorage.getItem('current_diagnostic_id');
 
-      const everDiagnosed = await AsyncStorage.getItem('hasDiagnosedEver');
+        if (!existingQuestions || !existingDiagnosticId) {
+          // 診断レコードを作成
+          const diagnosticId = await createDiagnostic(profileId, sessionDate);
 
-      setHasDiagnosedToday(isTodayDiagnosed);
-      setHasDiagnosedEver(everDiagnosed === 'true');
+          // ランダム質問を取得
+          const questions = await getRandomQuestions(profileId);
 
-      // 3. Tasks Status
-      const tasksDone = await AsyncStorage.getItem('dailyMissionCompleted');
-      setAllTasksCompleted(tasksDone === 'true');
-      // ...
+          // AsyncStorageに保存（質問開始時に使用）
+          await AsyncStorage.multiSet([
+            ['current_diagnostic_id', diagnosticId],
+            ['current_questions', JSON.stringify(questions)],
+            ['current_answers', JSON.stringify([])],
+            ['current_question_index', '0'],
+          ]);
 
-      // 4. Tooltip Check
+          console.log('Questions prepared for today:', questions.length);
+        }
+      }
+
+      // 5. Tooltip Check
       const hasSeen = await AsyncStorage.getItem('hasSeenTooltip');
       if (hasSeen !== 'true') {
         setShowTooltip(true);
-        // Hide after 3 seconds
         setTimeout(async () => {
           setShowTooltip(false);
           await AsyncStorage.setItem('hasSeenTooltip', 'true');
@@ -78,46 +87,15 @@ export default function HomeScreen() {
       }
 
     } catch (e) {
-      // ...
+      console.error('Failed to load home data:', e);
+      setError(e instanceof Error ? e.message : '読み込みに失敗しました');
     } finally {
       setLoading(false);
     }
   };
+
   const handleLaunch = () => {
-    resetQuestions();
     router.push('/question');
-  };
-
-  // --- Debug Functions ---
-  const handleReset = async () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    setDebugStatus("タイトル画面へ戻ります...");
-    setTimeout(async () => {
-      const keys = ['hasLaunched', 'userName', 'ageGroup', 'lifestyle', 'interest', 'jobType', 'techStack', 'currentMode', 'notifTime', 'weekdayFreeTime', 'weekendFreeTime', 'lastQuestionDate', 'dailyMissionCompleted', 'hasDiagnosedEver', 'hasSeenTooltip'];
-      await AsyncStorage.multiRemove(keys);
-      resetQuestions();
-      router.replace('/welcome');
-    }, 2000);
-  };
-
-  const handleNextDayDebug = async () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setDebugStatus("次の日に移行します...");
-    setTimeout(async () => {
-      await AsyncStorage.setItem('dailyMissionCompleted', 'false');
-      // Remove today's date to simulate next day (undiagnosed)
-      await AsyncStorage.removeItem('lastQuestionDate');
-      setHasDiagnosedToday(false);
-      setDebugModalVisible(false);
-      setDebugStatus(null);
-      loadData(); // Reload to refresh UI
-    }, 1000);
-  };
-
-  const handleTasksCompleteDebug = async () => {
-    await AsyncStorage.setItem('dailyMissionCompleted', 'true');
-    setAllTasksCompleted(true);
-    setDebugModalVisible(false);
   };
 
   if (loading) {
@@ -134,94 +112,47 @@ export default function HomeScreen() {
 
         {/* Header */}
         <GreetingHeader
-          userName={userName}
-          onSettingsPress={() => setDebugModalVisible(true)}
-          onLongPress={handleReset}
+          userName={homeData?.userName || "..."}
         />
+
+        {/* Error Display */}
+        {error && (
+          <View className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-4">
+            <Text className="text-red-400 text-center">{error}</Text>
+          </View>
+        )}
 
         {/* Launch Button */}
         <View className="mb-8 mt-4">
           <LaunchButton
-            isDiagnosed={hasDiagnosedToday}
+            isDiagnosed={homeData?.todayAnswered || false}
             onPress={handleLaunch}
             showTooltip={showTooltip}
           />
         </View>
 
         {/* Summaries (Only if diagnosed) */}
-        {hasDiagnosedToday && (
+        {homeData?.todayAnswered && (
           <>
-            <AnalysisSummaryCard
-              dominantMetric="Explore"
-              value={85} // Mock value
-              showTooltip={showTooltip}
-            />
+            {homeData.topParameter && (
+              <AnalysisSummaryCard
+                dominantMetric={homeData.topParameter.name}
+                dominantMetricKey={homeData.topParameter.key}
+                value={homeData.topParameter.score}
+                showTooltip={showTooltip}
+              />
+            )}
 
             <ActionSummaryCard
-              totalTasks={3}
-              completedTasks={allTasksCompleted ? 3 : 1} // Mock logic
-              isAllCompleted={allTasksCompleted}
+              totalTasks={homeData.taskSummary.total}
+              completedTasks={homeData.taskSummary.completed}
+              isAllCompleted={homeData.taskSummary.completed === homeData.taskSummary.total && homeData.taskSummary.total > 0}
               showTooltip={showTooltip}
             />
           </>
         )}
 
       </ScrollView>
-
-      {/* Debug Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={debugModalVisible}
-        onRequestClose={() => setDebugModalVisible(false)}
-      >
-        <View className="flex-1 justify-end">
-          <Pressable className="flex-1 bg-black/50" onPress={() => setDebugModalVisible(false)} />
-          <View className="bg-gray-900 border-t border-gray-700 p-6 rounded-t-3xl">
-            <Text className="text-white text-xl font-bold mb-6 text-center tracking-widest">DEBUG_MODE</Text>
-
-            {debugStatus ? (
-              <View className="py-10 items-center">
-                <ActivityIndicator size="large" color="#3B82F6" className="mb-4" />
-                <Text className="text-white font-bold">{debugStatus}</Text>
-              </View>
-            ) : (
-              <>
-                <TouchableOpacity
-                  onPress={handleNextDayDebug}
-                  className="bg-blue-600/20 border border-blue-500 p-4 rounded-xl mb-4 flex-row items-center justify-center"
-                >
-                  <Feather name="clock" size={20} color="#3B82F6" />
-                  <Text className="text-blue-400 font-bold ml-2">⏩ NEXT DAY (RESET DAILY)</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={handleTasksCompleteDebug}
-                  className="bg-green-600/20 border border-green-500 p-4 rounded-xl mb-4 flex-row items-center justify-center"
-                >
-                  <Feather name="check" size={20} color="#22c55e" />
-                  <Text className="text-green-400 font-bold ml-2">✅ COMPLETE TASKS</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={handleReset}
-                  className="bg-red-600/20 border border-red-500 p-4 rounded-xl mb-6 flex-row items-center justify-center"
-                >
-                  <Feather name="trash-2" size={20} color="#ef4444" />
-                  <Text className="text-red-400 font-bold ml-2">⚠ FULL RESET (WIPE DATA)</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => setDebugModalVisible(false)}
-                  className="p-4 items-center"
-                >
-                  <Text className="text-gray-500">CLOSE</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

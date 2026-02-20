@@ -38,6 +38,34 @@ try {
 type Mission = { cat: string; title: string; color: string; };
 type FlowPhase = 'analysis' | 'moving' | 'selecting' | 'filling' | 'completed';
 
+// カテゴリごとの色マッピング
+const CATEGORY_COLORS: Record<string, string> = {
+  '探索系': '#FF00FF',
+  '集中系': '#39FF14',
+  '実行系': '#FFA500',
+  '休息系': '#22D3EE',
+};
+
+// モックデータ（開発・デバッグ用に残す）
+const MOCK_MISSIONS: Mission[] = [
+  { cat: '没頭', title: '焼肉を食う', color: '#39FF14' },
+  { cat: '元気', title: '高級焼肉を食う', color: '#22D3EE' },
+  { cat: '探索', title: '高級焼肉を奢ってもらう', color: '#FF00FF' }
+];
+
+// DBTaskをMission形式に変換
+const convertTaskToMission = (task: DBTask): Mission => {
+  // カテゴリ名から「系」を除去（例: "探索系" → "探索"）
+  const categoryLabel = task.category.replace('系', '');
+  const color = CATEGORY_COLORS[task.category] || '#FFFFFF';
+
+  return {
+    cat: categoryLabel,
+    title: task.title,
+    color: color,
+  };
+};
+
 const SPACE_BG = '#020617';
 const RADAR_THEME = '#00E5FF';
 const RADAR_GRID = 'rgba(255, 255, 255, 0.1)';
@@ -92,17 +120,45 @@ const StellarPoint = ({ x, y, index, moveProgress }: { x: number, y: number, ind
 };
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../../supabase/client';
+import { getPreviousTitles, getTasksByDiagnosticId } from '../../supabase/tasks';
+import { ParameterScores, DBTask } from '../../types';
 
 export default function ResultFlowScreen() {
   const router = useRouter();
   const [phase, setPhase] = useState<FlowPhase>('analysis');
+  const [scores, setScores] = useState<ParameterScores | null>(null);
+  const [profileId, setProfileId] = useState('');
+  const [diagnosticId, setDiagnosticId] = useState('');
+  const [generatedTasks, setGeneratedTasks] = useState<Mission[] | null>(null);
+
+  useEffect(() => {
+    loadScores();
+  }, []);
+
+  const loadScores = async () => {
+    try {
+      const [scoresStr, profId, diagId] = await AsyncStorage.multiGet([
+        'current_scores',
+        'profile_id',
+        'current_diagnostic_id',
+      ]);
+
+      if (scoresStr[1]) {
+        setScores(JSON.parse(scoresStr[1]));
+      }
+      setProfileId(profId[1] || '');
+      setDiagnosticId(diagId[1] || '');
+    } catch (e) {
+      console.error('Failed to load scores:', e);
+    }
+  };
 
   const handleComplete = async () => {
     try {
-      await AsyncStorage.setItem('hasDiagnosedEver', 'true');
       router.replace('/(tabs)');
     } catch (e) {
-      console.error("Failed to save state", e);
+      console.error("Failed to navigate", e);
       router.replace('/(tabs)');
     }
   };
@@ -116,16 +172,25 @@ export default function ResultFlowScreen() {
   const colorProgress = useSharedValue(0);
   const fillProgress = useSharedValue(0);
 
-  const chartData = [
+  const chartData = scores ? [
+    { label: '探索', score: scores.exploration },
+    { label: '没頭', score: scores.immersion },
+    { label: '整理', score: scores.organization },
+    { label: '貢献', score: scores.contribution },
+    { label: '元気', score: scores.vitality }
+  ] : [
     { label: '探索', score: 70 }, { label: '没頭', score: 90 }, { label: '整理', score: 50 },
     { label: '貢献', score: 40 }, { label: '元気', score: 85 }
   ];
 
-  const missions = useMemo((): Mission[] => [
-    { cat: '没頭', title: '焼肉を食う', color: '#39FF14' },
-    { cat: '元気', title: '高級焼肉を食う', color: '#22D3EE' },
-    { cat: '探索', title: '高級焼肉を奢ってもらう', color: '#FF00FF' }
-  ], []);
+  const missions = useMemo((): Mission[] => {
+    // 生成されたタスクがある場合はそれを使う
+    if (generatedTasks && generatedTasks.length > 0) {
+      return generatedTasks;
+    }
+    // モックデータ（フォールバック）
+    return MOCK_MISSIONS;
+  }, [generatedTasks]);
 
   useEffect(() => {
     // 🚀 初期表示アニメーション（線が繋がる）
@@ -144,17 +209,81 @@ export default function ResultFlowScreen() {
     colorProgress.value = withDelay(800, withTiming(1, { duration: 1000 }));
   };
 
-  const handleSelectOption = (option: string) => {
+  const handleSelectOption = async (option: string) => {
     console.log("Selected timing:", option);
     setPhase('filling');
 
-    // 1.5秒間 "GENERATING..." を見せて光を回し続けたあと、塗りつぶし
-    fillProgress.value = withDelay(
-      1500,
-      withTiming(1, { duration: 800, easing: Easing.out(Easing.exp) }, () => {
-        runOnJS(setPhase)('completed');
-      })
-    );
+    try {
+      // プロフィール情報を取得
+      const [techStackStr, hobbiesStr] = await AsyncStorage.multiGet([
+        'techStack',
+        'hobbies',
+      ]);
+
+      const techStack = techStackStr[1] ? JSON.parse(techStackStr[1]) : [];
+      const hobbies = hobbiesStr[1] ? JSON.parse(hobbiesStr[1]) : [];
+
+      // 過去のタスクタイトルを取得
+      const previousTitles = await getPreviousTitles(profileId);
+
+      // タスク生成を呼び出し
+      const { data, error } = await supabase.functions.invoke('generate-tasks', {
+        body: {
+          profile_id: profileId,
+          diagnostic_id: diagnosticId,
+          timing: option,
+          task_levels: 'quick/core/deep',
+          profile: {
+            job_title: techStack[0] || 'エンジニア',
+            hobbies: hobbies,
+            interests: techStack,
+          },
+          metrics: scores || { exploration: 50, immersion: 50, organization: 50, contribution: 50, vitality: 50 },
+          previous_titles: previousTitles,
+        },
+      });
+
+      if (error) {
+        console.error('Task generation error:', error);
+      } else if (data?.task_ids && data.task_ids.length > 0) {
+        // タスク生成成功：Supabaseからタスクを取得してMission形式に変換
+        console.log('Tasks generated:', data);
+
+        try {
+          // 診断IDに紐づくタスクを取得
+          const tasks = await getTasksByDiagnosticId(diagnosticId);
+
+          // DBTask形式からMission形式に変換
+          const taskMissions = tasks.slice(0, 3).map(convertTaskToMission);
+
+          // generatedTasksに設定（これによりカードが実データで表示される）
+          setGeneratedTasks(taskMissions);
+
+          console.log('Tasks converted to missions:', taskMissions);
+        } catch (e) {
+          console.error('Failed to fetch tasks from DB:', e);
+          // エラーの場合はモックデータを使用（既存の動作）
+        }
+      }
+
+      // 1.5秒後に塗りつぶし
+      fillProgress.value = withDelay(
+        1500,
+        withTiming(1, { duration: 800, easing: Easing.out(Easing.exp) }, () => {
+          runOnJS(setPhase)('completed');
+        })
+      );
+
+    } catch (e) {
+      console.error('Failed to generate tasks:', e);
+      // エラーでも続行
+      fillProgress.value = withDelay(
+        1500,
+        withTiming(1, { duration: 800, easing: Easing.out(Easing.exp) }, () => {
+          runOnJS(setPhase)('completed');
+        })
+      );
+    }
   };
 
   // チャートと文字の全消し
@@ -215,7 +344,7 @@ export default function ResultFlowScreen() {
               {chartData.map((d, i) => {
                 const rad = ((i * 360) / 5 - 90) * Math.PI / 180;
                 const x = 200 + 175 * Math.cos(rad); const y = 200 + 175 * Math.sin(rad);
-                return <View key={`label-${i}`} style={[styles.labelWrapper, { left: x - 40, top: y - 20 }]}><Text style={styles.labelText}>{d.label}</Text><Text style={styles.labelScore}>{d.score}</Text></View>;
+                return <View key={`label-${i}`} style={[styles.labelWrapper, { left: x - 40, top: y - 20 }]}><Text style={styles.labelText}>{d.label}</Text><Text style={styles.labelScore}>{Math.round(d.score)}</Text></View>;
               })}
             </Animated.View>
           </View>

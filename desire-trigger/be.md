@@ -356,12 +356,11 @@ type GenerateTasksResponse = {
 
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-EXPO_PUBLIC_SUPABASE_KEY=xxx
+EXPO_PUBLIC_SUPABASE_ANON_KEY=xxx
 
 # Edge Function用（Supabaseダッシュボードで設定）
-OPENAI_API_KEY_1=sk-xxx
-OPENAI_API_KEY_2=sk-xxx
-ANTHROPIC_API_KEY=sk-ant-xxx
+OPENAI_API_KEY=sk-xxx
+GEMINI_API_KEY=AIza-xxx
 ```
 
 ---
