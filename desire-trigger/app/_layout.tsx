@@ -18,32 +18,30 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        {/* 全画面共通でヘッダーを非表示に設定 */}
         <Stack screenOptions={{ headerShown: false }}>
 
-          {/* 🚀 スタート画面関連：スライドを無効化し、フェードアニメーションを適用 */}
-          <Stack.Screen
-            name="index"
-            options={{ animation: 'fade' }}
-          />
-          <Stack.Screen
-            name="welcome"
-            options={{ animation: 'fade' }}
-          />
-          <Stack.Screen
-            name="(tabs)"
-            options={{ animation: 'fade' }}
-          />
-          <Stack.Screen
-            name="setup"
-            options={{ animation: 'fade' }}
-          />
+          {/* 各画面の設定 */}
+          <Stack.Screen name="index" options={{ animation: 'fade' }} />
+          <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
+          <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+          <Stack.Screen name="setup" options={{ animation: 'fade' }} />
 
-          {/* 🚀 モーダル画面：これらはiOS標準のポップアップ動作を維持 */}
+          {/* 🚀 ここが最重要の修正ポイント！ */}
           <Stack.Screen
             name="question"
-            options={{ presentation: 'fullScreenModal' }}
+            options={{ 
+              // 1. presentationを 'transparentModal' にするか、指定を外します。
+              // fullScreenModalは「下からスライド」が強制されるため、これが原因でした。
+              presentation: 'card', 
+              
+              // 2. animationを確実に 'none' に。
+              animation: 'fade', 
+              
+              // 3. 背景色を宇宙の色に合わせておくと、一瞬のチラつきも防げます。
+              contentStyle: { backgroundColor: '#020617' }
+            }}
           />
+
           <Stack.Screen
             name="reflection"
             options={{ presentation: 'modal' }}
@@ -54,7 +52,6 @@ export default function RootLayout() {
           />
         </Stack>
 
-        {/* 宇宙背景に合わせて時計やアイコンを白に固定 */}
         <StatusBar style="light" />
       </ThemeProvider>
     </GestureHandlerRootView>

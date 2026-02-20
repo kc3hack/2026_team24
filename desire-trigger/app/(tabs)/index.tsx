@@ -98,7 +98,7 @@ export default function HomeScreen() {
   };
 
   const handleLaunch = () => {
-    router.push('/question');
+    router.push('/question/transition-home'as unknown as any);
   };
 
   if (loading) {
