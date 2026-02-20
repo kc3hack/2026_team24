@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Animated, KeyboardAvoidingView, Platform, Dimensions, LayoutAnimation, UIManager, Keyboard, Easing } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, Animated, KeyboardAvoidingView, Platform, Dimensions, LayoutAnimation, UIManager, Keyboard, Easing, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,9 +8,11 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
 import { scheduleNotification } from '../hooks/useNotification';
-// OccupationScatter removed, not used anymore
 import SelectionGrid from '../components/setup/SelectionGrid';
 import StarryBackground from '../components/ui/StarryBackground';
+import { createUser } from '../supabase/profiles';
+import { createInitialDiagnostic } from '../supabase/diagnostics';
+import { getSessionDate } from '../lib/dateUtils';
 
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -158,44 +160,68 @@ export default function SetupScreen() {
     }
   };
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const saveAndFinish = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+
     try {
-      // Schedule notification if permission granted
-      if (notifPermission === 'granted') {
-        const timeStr = `${formData.notifTime.getHours()}:${formData.notifTime.getMinutes().toString().padStart(2, '0')}`;
-        await scheduleNotification(timeStr);
-      }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      // 1. Generate Mock Profile ID
-      const mockProfileId = 'mock-user-' + Math.random().toString(36).substr(2, 9);
-
-      // 2. Prepare Data
+      // 1. Prepare Data
       const finalTech = formData.techStack.map(t => t === 'その他' ? formData.techOther : t).filter(Boolean);
       const finalHobbies = formData.hobbies.map(h => h === 'その他' ? formData.hobbiesOther : h).filter(Boolean);
       const finalWorries = formData.worries.map(w => w === 'その他' ? formData.worriesOther : w).filter(Boolean);
       const timeStr = `${formData.notifTime.getHours()}:${formData.notifTime.getMinutes().toString().padStart(2, '0')}`;
 
-      // 3. Save to AsyncStorage
+      // 2. Create Supabase Profile
+      const profileId = await createUser({
+        name: formData.userName,
+        job_title: finalTech[0] || 'エンジニア', // 最初の技術スタックを職種として使用
+        hobbies: finalHobbies,
+        interests: finalTech,
+        current_mode: (formData.selectedMode as any) || 'exploration', // デフォルト値: exploration
+        notify_time: timeStr,
+      });
+
+      // 2.5. Create initial diagnostic with mode-specific scores
+      const modeMap: Record<string, 'exploration' | 'immersion' | 'organization' | 'contribution' | 'vitality'> = {
+        '探索': 'exploration',
+        '没頭': 'immersion',
+        '整理': 'organization',
+        '貢献': 'contribution',
+        '元気': 'vitality',
+      };
+      const currentMode = modeMap[formData.selectedMode] || 'exploration';
+      const sessionDate = await getSessionDate();
+      await createInitialDiagnostic(profileId, sessionDate, currentMode);
+
+      // 3. Schedule notification if permission granted
+      if (notifPermission === 'granted') {
+        await scheduleNotification(timeStr);
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // 4. Save to AsyncStorage
       const data: [string, string][] = [
-        ['profile_id', mockProfileId],
+        ['profile_id', profileId],
         ['userName', formData.userName],
         ['techStack', JSON.stringify(finalTech)],
         ['hobbies', JSON.stringify(finalHobbies)],
         ['worries', JSON.stringify(finalWorries)],
         ['selectedMode', formData.selectedMode],
         ['notifTime', timeStr],
-        ['hasLaunched', 'true']
       ];
 
       await AsyncStorage.multiSet(data);
 
-      // 4. Navigate
+      // 5. Navigate
       router.replace('/(tabs)');
 
     } catch (e) {
-      console.error(e);
-      alert("保存に失敗しました");
+      console.error('Setup error:', e);
+      alert("保存に失敗しました: " + (e instanceof Error ? e.message : String(e)));
+      setIsSaving(false);
     }
   };
 
@@ -429,9 +455,23 @@ export default function SetupScreen() {
                 <Feather name="arrow-right" size={20} color="white" />
               </Pressable>
             ) : (
-              <Pressable onPress={saveAndFinish} className="bg-green-500 flex-row items-center px-8 h-14 rounded-full shadow-lg shadow-green-500/30">
-                <Text className="text-white font-bold text-lg mr-2">開始する</Text>
-                <Feather name="check" size={20} color="white" />
+              <Pressable
+                onPress={saveAndFinish}
+                disabled={isSaving}
+                className="bg-green-500 flex-row items-center px-8 h-14 rounded-full shadow-lg shadow-green-500/30"
+                style={{ opacity: isSaving ? 0.6 : 1 }}
+              >
+                {isSaving ? (
+                  <>
+                    <ActivityIndicator size="small" color="white" />
+                    <Text className="text-white font-bold text-lg ml-2">保存中...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text className="text-white font-bold text-lg mr-2">開始する</Text>
+                    <Feather name="check" size={20} color="white" />
+                  </>
+                )}
               </Pressable>
             )}
           </View>

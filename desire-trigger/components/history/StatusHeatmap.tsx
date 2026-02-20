@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { HistoryLog } from '../../types';
-import { METRIC_COLORS } from '../../data/mock/historyData';
+import { METRIC_COLORS, METRIC_LABELS } from '../../constants/mockData';
 
 interface StatusHeatmapProps {
     data: HistoryLog[];
@@ -11,6 +11,15 @@ interface StatusHeatmapProps {
 
 const EMPTY_COLOR = '#334155'; // Slate-700 for empty days
 const BORDER_COLOR_SELECTED = '#FFFFFF';
+
+// 日本語名から PrimaryMetric へのマッピング
+const japaneseToPrimaryMetric: Record<string, keyof typeof METRIC_COLORS> = {
+    '探索': 'exploration',
+    '没頭': 'immersion',
+    '整理': 'refactor',
+    '貢献': 'contribution',
+    '元気': 'idle',
+};
 
 export default function StatusHeatmap({ data, displayMonth, onDayPress, selectedDate }: StatusHeatmapProps) {
 
@@ -66,14 +75,20 @@ export default function StatusHeatmap({ data, displayMonth, onDayPress, selected
                 {fullMonthDays.map(({ dateStr, dayNum }) => {
                     const log = data.find(d => d.date === dateStr);
                     const isSelected = dateStr === selectedDate;
-                    const color = log ? (METRIC_COLORS[log.primaryMetric] || EMPTY_COLOR) : EMPTY_COLOR;
 
-                    const dayPayload = log || {
+                    // dominantMetric（日本語）をPrimaryMetricに変換して色を取得
+                    let color = EMPTY_COLOR;
+                    if (log && log.dominantMetric) {
+                        const metricKey = japaneseToPrimaryMetric[log.dominantMetric];
+                        color = metricKey ? METRIC_COLORS[metricKey] : EMPTY_COLOR;
+                    }
+
+                    const dayPayload: HistoryLog = log || {
                         date: dateStr,
-                        primaryMetric: 'idle' as const,
+                        dominantMetric: '元気',
+                        hasQuestions: false,
+                        hasTasks: false,
                         score: 0,
-                        metrics: {},
-                        tasksCompleted: 0
                     };
 
                     return (

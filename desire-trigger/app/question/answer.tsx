@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, Dimensions, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useMockStore } from '../../store/mockStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { addAnsweredQuestionId } from '../../lib/answeredQuestions';
+import { DBQuestion, QuestionAnswer } from '../../types';
 import { Feather } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -60,8 +62,41 @@ const Star = ({ warpFactor }: { warpFactor: SharedValue<number> }) => {
 
 export default function QuestionAnswerScreen() {
   const router = useRouter();
-  const { currentQuestionIndex, questions, nextQuestion, setAnswer } = useMockStore();
-  const currentQuestion = questions[currentQuestionIndex];
+  const [questions, setQuestions] = useState<DBQuestion[]>([]);
+  const [answers, setAnswers] = useState<QuestionAnswer[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [profileId, setProfileId] = useState<string>('');
+
+  const currentQuestion = questions[currentIndex];
+
+  // データ読み込み
+  useEffect(() => {
+    loadQuestions();
+  }, []);
+
+  const loadQuestions = async () => {
+    try {
+      const [questionsStr, answersStr, indexStr, profId] = await AsyncStorage.multiGet([
+        'current_questions',
+        'current_answers',
+        'current_question_index',
+        'profile_id',
+      ]);
+
+      const loadedQuestions = questionsStr[1] ? JSON.parse(questionsStr[1]) : [];
+      const loadedAnswers = answersStr[1] ? JSON.parse(answersStr[1]) : [];
+      const loadedIndex = indexStr[1] ? parseInt(indexStr[1], 10) : 0;
+      const loadedProfileId = profId[1] || '';
+
+      setQuestions(loadedQuestions);
+      setAnswers(loadedAnswers);
+      setCurrentIndex(loadedIndex);
+      setProfileId(loadedProfileId);
+    } catch (e) {
+      console.error('Failed to load questions:', e);
+      router.back();
+    }
+  };
 
   // UI共有値
   const translateX = useSharedValue(0);
@@ -109,16 +144,57 @@ export default function QuestionAnswerScreen() {
     ringOpacity.value = withTiming(0, { duration });
   };
 
-  const onAnswerComplete = (answer: 'YES' | 'NO' | 'UNKNOWN', velocity: number) => {
+  const onAnswerComplete = async (answer: 'YES' | 'NO' | 'UNKNOWN', velocity: number) => {
     if (answer !== 'UNKNOWN') triggerImpact(velocity, answer);
-    if (currentQuestion) {
-      setAnswer(currentQuestion.id, answer);
-      translateX.value = 0; rotate.value = 0;
-      if (currentQuestionIndex === questions.length - 1) {
+    if (!currentQuestion) return;
+
+    try {
+      // スワイプ値を計算（速度から0-100へ）
+      const speed = Math.abs(velocity);
+      const swipeValue = Math.round(interpolate(speed, [0, 5000], [1, 100], 'clamp'));
+
+      // 回答を作成
+      const newAnswer: QuestionAnswer = {
+        question_id: currentQuestion.id, // number型のまま保存
+        question_text: currentQuestion.text, // question_textも保存
+        direction: answer === 'YES' ? 'yes' : 'no',
+        swipe_value: swipeValue,
+      };
+
+      // デバッグ用：回答内容を出力
+      console.log('Answer saved:', {
+        question_id: newAnswer.question_id,
+        question_text: newAnswer.question_text,
+        direction: newAnswer.direction,
+        swipe_value: newAnswer.swipe_value,
+      });
+
+      const updatedAnswers = [...answers, newAnswer];
+      setAnswers(updatedAnswers);
+
+      // AsyncStorageに保存
+      await AsyncStorage.setItem('current_answers', JSON.stringify(updatedAnswers));
+      await AsyncStorage.setItem('current_question_index', String(currentIndex + 1));
+
+      // 回答済みIDを記録
+      await addAnsweredQuestionId(profileId, currentQuestion.id);
+
+      translateX.value = 0;
+      rotate.value = 0;
+
+      // 最後の質問か？
+      if (currentIndex === questions.length - 1) {
         warpFactor.value = withTiming(1, { duration: 800 });
         whiteoutOpacity.value = withDelay(400, withTiming(1, { duration: 500 }));
-        setTimeout(() => { router.replace('/question/complete'); }, 1000);
-      } else { nextQuestion(); }
+        setTimeout(() => {
+          router.replace('/question/complete');
+        }, 1000);
+      } else {
+        // 次の質問へ
+        setCurrentIndex(currentIndex + 1);
+      }
+    } catch (e) {
+      console.error('Failed to save answer:', e);
     }
   };
 
@@ -176,7 +252,7 @@ export default function QuestionAnswerScreen() {
         </View>
 
         <View style={styles.header}>
-          <Text style={styles.headerText}>{`PROTOCOL: ${currentQuestionIndex + 1}/${questions.length}`}</Text>
+          <Text style={styles.headerText}>{`PROTOCOL: ${currentIndex + 1}/${questions.length}`}</Text>
         </View>
 
         <View className="flex-1 justify-center items-center">

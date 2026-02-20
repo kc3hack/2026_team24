@@ -2,18 +2,20 @@ import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, FlatList, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import MetricDetailCard, { MetricKey, METRIC_ORDER } from './MetricDetailCard';
+import { Diagnostic } from '../../types';
 
 interface MetricDetailModalProps {
     visible: boolean;
     onClose: () => void;
     metricKey: MetricKey;
     onMetricChange?: (key: MetricKey) => void;
+    diagnostic?: Diagnostic | null;
 }
 
 // Loop data: [Last, ...Original, First]
 const LOOPED_METRICS = [METRIC_ORDER[METRIC_ORDER.length - 1], ...METRIC_ORDER, METRIC_ORDER[0]];
 
-export default function MetricDetailModal({ visible, onClose, metricKey, onMetricChange }: MetricDetailModalProps) {
+export default function MetricDetailModal({ visible, onClose, metricKey, onMetricChange, diagnostic }: MetricDetailModalProps) {
     const flatListRef = useRef<FlatList>(null);
     const windowWidth = Dimensions.get('window').width;
     const cardWidth = Math.min(windowWidth - 48, 400); // Overlay padding 24*2 = 48. Max width 400.
@@ -110,7 +112,7 @@ export default function MetricDetailModal({ visible, onClose, metricKey, onMetri
                             onMomentumScrollEnd={handleScrollEnd}
                             renderItem={({ item }) => (
                                 <View style={{ width: cardWidth }}>
-                                    <MetricDetailCard metricKey={item} />
+                                    <MetricDetailCard metricKey={item} diagnostic={diagnostic} />
                                 </View>
                             )}
                         />

@@ -1,14 +1,50 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { HistoryLog } from '../../types';
-import { METRIC_COLORS, METRIC_LABELS } from '../../data/mock/historyData';
+import { DayDetail as DayDetailType, MetricKey, DBTask } from '../../types';
+import { METRIC_COLORS } from '../../constants/mockData';
 import { Feather } from '@expo/vector-icons';
 
 interface DayDetailProps {
-    selectedDay: HistoryLog | null;
+    selectedDayDetail: DayDetailType | null;
+    loading?: boolean;
 }
 
-export default function DayDetail({ selectedDay }: DayDetailProps) {
-    if (!selectedDay) {
+// 日本語名からMetricKeyへのマッピング
+const japaneseToPrimaryMetric: Record<string, MetricKey> = {
+    '探索': 'exploration',
+    '没頭': 'immersion',
+    '整理': 'organization',
+    '貢献': 'contribution',
+    '元気': 'vitality',
+};
+
+// MetricKeyから日本語へのマッピング
+const metricToJapanese: Record<MetricKey, string> = {
+    exploration: '探索',
+    immersion: '没頭',
+    organization: '整理',
+    contribution: '貢献',
+    vitality: '元気',
+};
+
+// MetricKeyから色へのマッピング（PrimaryMetricの色を使用）
+const metricToColor: Record<MetricKey, string> = {
+    exploration: '#3B82F6', // Blue
+    immersion: '#10B981',   // Emerald
+    organization: '#8B5CF6', // Violet
+    contribution: '#F97316', // Orange
+    vitality: '#06B6D4',    // Cyan
+};
+
+export default function DayDetail({ selectedDayDetail, loading }: DayDetailProps) {
+    if (loading) {
+        return (
+            <View className="flex-1 items-center justify-center p-6">
+                <Text className="text-gray-500">読み込み中...</Text>
+            </View>
+        );
+    }
+
+    if (!selectedDayDetail) {
         return (
             <View className="flex-1 items-center justify-center p-6 opacity-50">
                 <Feather name="bar-chart-2" size={48} color="#64748b" />
@@ -19,15 +55,46 @@ export default function DayDetail({ selectedDay }: DayDetailProps) {
         );
     }
 
-    const color = METRIC_COLORS[selectedDay.primaryMetric];
-    const label = METRIC_LABELS[selectedDay.primaryMetric];
+    const { diagnostic, completedTasks } = selectedDayDetail;
+
+    // 最高値のメトリックを取得
+    const metrics: Record<MetricKey, number> = {
+        exploration: diagnostic.exploration,
+        immersion: diagnostic.immersion,
+        organization: diagnostic.organization,
+        contribution: diagnostic.contribution,
+        vitality: diagnostic.vitality,
+    };
+
+    const topMetricEntry = Object.entries(metrics).reduce(
+        (max, [key, value]) => value > max.value ? { key: key as MetricKey, value } : max,
+        { key: 'exploration' as MetricKey, value: -Infinity }
+    );
+
+    const topMetricKey = topMetricEntry.key;
+    const topMetricScore = Math.round(topMetricEntry.value);
+    const color = metricToColor[topMetricKey];
+    const label = metricToJapanese[topMetricKey];
+
+    // タスクの難易度ラベルと色のマッピング
+    const levelToColor: Record<string, string> = {
+        'quick': '#10B981', // Green
+        'core': '#3B82F6',  // Blue
+        'deep': '#8B5CF6',  // Purple
+    };
+
+    const levelToLabel: Record<string, string> = {
+        'quick': 'QUICK',
+        'core': 'CORE',
+        'deep': 'DEEP',
+    };
 
     return (
         <View className="bg-gray-800 p-6 rounded-2xl border border-gray-700">
             <View className="flex-row items-center justify-between mb-6">
                 <View>
                     <Text className="text-gray-400 text-xs font-bold mb-1 tracking-widest">
-                        {selectedDay.date}
+                        {diagnostic.date}
                     </Text>
                     <View className="flex-row items-center">
                         <View
@@ -42,41 +109,41 @@ export default function DayDetail({ selectedDay }: DayDetailProps) {
                 <View className="items-end">
                     <Text className="text-gray-400 text-xs font-bold">SCORE</Text>
                     <Text style={{ color: color }} className="text-3xl font-bold">
-                        {selectedDay.score}
+                        {topMetricScore}
                     </Text>
                 </View>
             </View>
 
             <View className="space-y-4">
-                {/* Mock breakdown of metrics */}
                 <View>
                     <Text className="text-gray-400 mb-2 font-bold text-xs">完了したタスク</Text>
-                    {selectedDay.taskList && selectedDay.taskList.length > 0 ? (
-                        selectedDay.taskList.map((task, index) => (
-                            <View key={index} className="flex-row items-center justify-between bg-gray-700/50 p-3 rounded-lg mb-2">
-                                <View className="flex-row items-center flex-1 mr-2">
-                                    <View className={`w-2 h-2 rounded-full mr-3 ${task.isCompleted
-                                        ? (task.color === 'Core' ? 'bg-blue-500' : task.color === 'Deep' ? 'bg-purple-500' : 'bg-green-500')
-                                        : 'bg-gray-500'
-                                        }`} />
-                                    <Text className="text-white font-medium truncate" numberOfLines={1}>{task.title}</Text>
+                    {completedTasks && completedTasks.length > 0 ? (
+                        completedTasks.map((task: DBTask) => {
+                            const taskColor = levelToColor[task.level] || '#94a3b8';
+                            const taskLabel = levelToLabel[task.level] || task.level.toUpperCase();
+
+                            return (
+                                <View key={task.id} className="flex-row items-center justify-between bg-gray-700/50 p-3 rounded-lg mb-2">
+                                    <View className="flex-row items-center flex-1 mr-2">
+                                        <View
+                                            style={{ backgroundColor: taskColor }}
+                                            className="w-2 h-2 rounded-full mr-3"
+                                        />
+                                        <Text className="text-white font-medium truncate" numberOfLines={1}>{task.title}</Text>
+                                    </View>
+                                    <View style={{ backgroundColor: `${taskColor}33`, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 }}>
+                                        <Text style={{ color: taskColor, fontSize: 10, fontWeight: 'bold' }}>
+                                            {taskLabel}
+                                        </Text>
+                                    </View>
                                 </View>
-                                <View className={`px-2 py-1 rounded text-xs ${task.color === 'Core' ? 'bg-blue-500/20' :
-                                    task.color === 'Deep' ? 'bg-purple-500/20' : 'bg-green-500/20'
-                                    }`}>
-                                    <Text className={`text-[10px] font-bold ${task.color === 'Core' ? 'text-blue-400' :
-                                        task.color === 'Deep' ? 'text-purple-400' : 'text-green-400'
-                                        }`}>
-                                        {task.color.toUpperCase()}
-                                    </Text>
-                                </View>
-                            </View>
-                        ))
+                            );
+                        })
                     ) : (
-                        <Text className="text-gray-500 italic">タスクの記録はありません。</Text>
+                        <Text className="text-gray-500 italic">完了したタスクはありません。</Text>
                     )}
                 </View>
             </View>
-        </View >
+        </View>
     );
 }
