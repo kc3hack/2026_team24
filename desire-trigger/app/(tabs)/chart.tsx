@@ -8,6 +8,7 @@ import TrendSection from '../../components/analysis/TrendSection';
 import MetricDetailModal from '../../components/analysis/MetricDetailModal';
 import { MetricKey } from '../../components/analysis/MetricDetailCard';
 import InsightCard from '../../components/analysis/InsightCard';
+import ShootingStarBackground from '../../components/ui/ShootingStarBackground';
 
 
 export default function ChartScreen() {
@@ -22,6 +23,7 @@ export default function ChartScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
+            <ShootingStarBackground />
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 {/* Header Area */}
                 <View style={styles.headerContainer}>
