@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Polygon, G, Defs, RadialGradient, Stop, Path, Circle } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedProps,
-  useAnimatedStyle,
   withTiming,
   withDelay,
+  withSpring,
   interpolate,
   Easing,
 } from 'react-native-reanimated';
@@ -36,8 +36,18 @@ export default function RadarScreen() {
   const router = useRouter();
   const [scores, setScores] = useState<ParameterScores | null>(null);
 
-  const chartEnter = useSharedValue(0);
+  // --- アニメーション用の共有値 ---
   const lineDrawProgress = useSharedValue(0);
+  const fillOpacity = useSharedValue(0);
+  const isExiting = useSharedValue(0);
+  
+  // 5つの星（✨）それぞれのスケール用
+  const starScale0 = useSharedValue(0.001);
+  const starScale1 = useSharedValue(0.001);
+  const starScale2 = useSharedValue(0.001);
+  const starScale3 = useSharedValue(0.001);
+  const starScale4 = useSharedValue(0.001);
+  const starScales = [starScale0, starScale1, starScale2, starScale3, starScale4];
 
   useEffect(() => {
     loadScores();
@@ -54,12 +64,6 @@ export default function RadarScreen() {
     }
   };
 
-  useEffect(() => {
-    // レーダーチャートのアニメーション（2〜3秒）
-    chartEnter.value = withTiming(1, { duration: 2000, easing: Easing.out(Easing.exp) });
-    lineDrawProgress.value = withDelay(600, withTiming(1, { duration: 1500, easing: Easing.out(Easing.cubic) }));
-  }, []);
-
   const chartData = scores ? [
     { label: '探索', score: scores.exploration },
     { label: '没頭', score: scores.immersion },
@@ -74,25 +78,74 @@ export default function RadarScreen() {
     { label: '元気', score: 85 }
   ];
 
+  // パス（線）の合計長さを計算して、描画アニメーションの長さを決める
+  const totalPerimeter = useMemo(() => {
+    return chartData.reduce((acc, d, i) => {
+      const nextD = chartData[(i + 1) % 5];
+      const p1 = getVertex(145 * (d.score / 100), i);
+      const p2 = getVertex(145 * (nextD.score / 100), (i + 1) % 5);
+      return acc + Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+    }, 0);
+  }, [chartData]);
+
+  useEffect(() => {
+    // --- Phase 1: 星が順番に右回りでバウンド出現 ---
+    const STAR_DELAY = 400; // 星と星の出現間隔（ミリ秒）
+    const INITIAL_DELAY = 500; // 画面が開いてからの最初の待機時間
+
+    chartData.forEach((_, i) => {
+      starScales[i].value = withDelay(
+        INITIAL_DELAY + i * STAR_DELAY,
+        withSpring(1.5, { damping: 4, stiffness: 100 }) // ポヨンと弾ける設定
+      );
+    });
+
+    // --- Phase 2: すべての星が出揃ったら、線が星を繋いでいく ---
+    const LINE_START_DELAY = INITIAL_DELAY + chartData.length * STAR_DELAY + 200;
+    const LINE_DURATION = 3000; // 3秒かけてじっくり線を引く
+
+    lineDrawProgress.value = withDelay(
+      LINE_START_DELAY,
+      withTiming(1, { duration: LINE_DURATION, easing: Easing.inOut(Easing.cubic) }, () => {
+        // --- Phase 3: 線が繋がりきったら、中の背景色をフワッと表示 ---
+        fillOpacity.value = withTiming(1, { duration: 800 });
+      })
+    );
+  }, []);
+
+  // ポリゴンの線と塗りのアニメーション設定
   const polygonProps = useAnimatedProps(() => {
     const points = chartData.map((d, i) => {
-      const p = getVertex(145 * (d.score / 100) * chartEnter.value, i);
+      const p = getVertex(145 * (d.score / 100), i);
       return i === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`;
-    }).join(' ');
+    }).join(' ') + ' Z'; // 最後をZで閉じて図形にする
 
-    const strokeDashoffset = interpolate(lineDrawProgress.value, [0, 1], [2000, 0]);
+    // 0から1へ進むにつれて、dashoffsetを減らして線を伸ばす
+    const strokeDashoffset = interpolate(lineDrawProgress.value, [0, 1], [totalPerimeter, 0]);
 
     return {
-      d: `${points}Z`,
+      d: points,
       stroke: "#FFFFFF",
-      strokeWidth: 1,
-      strokeDasharray: 2000,
+      strokeWidth: 2,
+      strokeDasharray: totalPerimeter,
       strokeDashoffset,
+      fill: POLYGON_FILL,
+      fillOpacity: fillOpacity.value, // 線が引き終わるまでは透明
     };
   });
 
   const handleNext = () => {
-    router.push('/question/tasks');
+    // 1. 退出アニメーションのフラグを立てる（これで星が移動を開始）
+    isExiting.value = withTiming(1, { duration: 600, easing: Easing.inOut(Easing.cubic) });
+    
+    // 2. 背景の塗りつぶしや線をスッと消す
+    fillOpacity.value = withTiming(0, { duration: 300 });
+    lineDrawProgress.value = withTiming(0, { duration: 300 });
+
+    // 3. アニメーションが終わる頃（約600ms後）に画面遷移を実行
+    setTimeout(() => {
+      router.push('/question/tasks');
+    }, 600);
   };
 
   return (
@@ -117,6 +170,7 @@ export default function RadarScreen() {
               </Defs>
 
               <G>
+                {/* 背景のクモの巣グリッド */}
                 {[150, 100, 50].map(r => (
                   <Polygon
                     key={`grid-${r}`}
@@ -130,20 +184,50 @@ export default function RadarScreen() {
                     fill="transparent"
                   />
                 ))}
-                <AnimatedPath animatedProps={polygonProps} fill={POLYGON_FILL} strokeLinejoin="round" />
 
+                {/* 星を繋ぐアニメーション線 */}
+                <AnimatedPath animatedProps={polygonProps} strokeLinejoin="round" />
+
+                {/* 順番にバウンドして出現する星（✨） */}
                 {chartData.map((d, i) => {
                   const p = getVertex(145 * (d.score / 100), i);
+                  
+                  // 💡 退出時に星が向かうターゲット座標（カードが配置されるおおよそのY座標）
+                  // 5つの星を、上(0)・中(1)・下(2)のカード位置に割り振る
+                  const targetYOffsets = [-130, -130, 0, 130, 130]; 
+                  const targetX = 200; // 中央
+                  const targetY = 200 + targetYOffsets[i]; 
+
+                  const animatedScale = useAnimatedProps(() => {
+                    // 退出時は星を縮小させて消す
+                    const exitScale = interpolate(isExiting.value, [0, 0.8, 1], [1, 1.5, 0]);
+                    
+                    // 現在位置からターゲット位置への移動
+                    const currentX = interpolate(isExiting.value, [0, 1], [p.x, targetX]);
+                    const currentY = interpolate(isExiting.value, [0, 1], [p.y, targetY]);
+
+                    return {
+                      transform: [
+                        { translateX: currentX },
+                        { translateY: currentY },
+                        { scale: starScales[i].value * exitScale }
+                      ]
+                    } as any;
+                  });
+
                   return (
-                    <G key={`vertex-${i}`}>
-                      <Circle cx={p.x} cy={p.y} r="20" fill="url(#vertexGlow)" opacity={0.6} />
-                      <Circle cx={p.x} cy={p.y} r="8" fill="#FFFFFF" />
+                    <G key={`star-${i}`}>
+                      <AnimatedG animatedProps={animatedScale}>
+                        <Circle r="20" cx="0" cy="0" fill="url(#vertexGlow)" opacity={0.6} />
+                        <Path d="M 0 -12 Q 0 0 12 0 Q 0 0 0 12 Q 0 0 -12 0 Q 0 0 0 -12 Z" fill="#FFFFFF" />
+                      </AnimatedG>
                     </G>
                   );
                 })}
               </G>
             </Svg>
 
+            {/* パラメーターのラベルとスコア文字 */}
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
               {chartData.map((d, i) => {
                 const rad = ((i * 360) / 5 - 90) * Math.PI / 180;

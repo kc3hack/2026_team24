@@ -40,45 +40,7 @@ const MOCK_MISSIONS: Mission[] = [
   { cat: '探索', title: '高級焼肉を奢ってもらう', color: '#FF00FF', level: 'DEEP' }
 ];
 
-// ✨ 星が直接カードの上下端へ飛んでいく
-const StellarPoint = ({ cardIndex, isTop, color, fillProgress }: {
-  cardIndex: number;
-  isTop: boolean;
-  color: string;
-  fillProgress: SharedValue<number>;
-}) => {
-  const scale = useSharedValue(0);
-  const opacity = useSharedValue(0);
 
-  useEffect(() => {
-    const delay = cardIndex * 500;
-    scale.value = withDelay(delay, withSpring(1, { damping: 12, stiffness: 120 }));
-    opacity.value = withDelay(delay, withTiming(1, { duration: 300 }));
-  }, []);
-
-  const animatedProps = useAnimatedProps(() => {
-    const baseOpacity = opacity.value;
-    const fadeOut = interpolate(fillProgress.value, [0, 0.3], [1, 0], 'clamp');
-
-    return {
-      transform: [{ scale: scale.value }],
-      opacity: baseOpacity * fadeOut
-    };
-  });
-
-  const sparklePath = "M 0 -14 C 0 -7, 7 0, 14 0 C 7 0, 0 7, 0 14 C 0 7, -7 0, -14 0 C -7 0, 0 -7, 0 -14 Z";
-
-  const yPosition = isTop ? 0 : CARD_HEIGHT;
-
-  return (
-    <AnimatedG animatedProps={animatedProps}>
-      <G transform={`translate(${CARD_WIDTH / 2}, ${yPosition})`}>
-        <Circle cx={0} cy={0} r="20" fill="url(#vertexGlow)" opacity={0.6} />
-        <Path d={sparklePath} fill={color} />
-      </G>
-    </AnimatedG>
-  );
-};
 
 export default function TasksScreen() {
   const router = useRouter();
@@ -109,7 +71,7 @@ export default function TasksScreen() {
 
       // タスクカード表示開始
       fillProgress.value = withDelay(
-        1500,
+        2000,
         withTiming(1, { duration: 800, easing: Easing.out(Easing.exp) }, (finished) => {
           if (finished) {
             runOnJS(setShowButton)(true);
@@ -173,43 +135,55 @@ const CyberCard = ({ task, index, fillProgress }: {
 }) => {
   const spinProgress = useSharedValue(0);
   const colorProgress = useSharedValue(0);
+  const traceOpacity = useSharedValue(0)
 
   const perimeter = (CARD_WIDTH + CARD_HEIGHT) * 2;
 
   useEffect(() => {
-    const delay = index * 500;
-    // 光の無限周回
+    const BASE_DELAY = index * 200; // インデックスごとの遅延も短縮
+    
+    // 画面が開いて星が現れたら、即座に線をパッと表示
+    traceOpacity.value = withDelay(BASE_DELAY + 300, withTiming(1, { duration: 10 }));
+
+    // 光の無限周回（即座にスタート）
     spinProgress.value = withDelay(
-      delay,
-      withRepeat(withTiming(1, { duration: 500, easing: Easing.linear }), -1, false)
+      BASE_DELAY + 300,
+      withRepeat(withTiming(1, { duration: 200, easing: Easing.linear }), -1, false)
     );
-    // 色の変化
-    colorProgress.value = withDelay(delay + 800, withTiming(1, { duration: 1000 }));
+    // 色の変化（枠を塗りつぶし始める）
+    colorProgress.value = withDelay(
+      BASE_DELAY + 500, 
+      withTiming(1, { duration: 800 })
+    );
   }, []);
 
   const traceProps1 = useAnimatedProps(() => {
     const baseOffset = interpolate(spinProgress.value, [0, 1], [perimeter, 0]);
-    const offset = baseOffset - (perimeter * 0);
     const stroke = interpolateColor(colorProgress.value, [0, 1], ['#FFFFFF', task.color]);
-    const opacity = interpolate(fillProgress.value, [0, 0.2], [1, 0], 'clamp');
+    const fadeOut = interpolate(fillProgress.value, [0, 0.2], [1, 0], 'clamp');
+    
     return {
       strokeDasharray: `${perimeter * 0.15} ${perimeter}`,
-      strokeDashoffset: offset,
+      strokeDashoffset: baseOffset,
       stroke,
-      opacity
+      // 💡 透明度と太さの両方を0にしてチラ見えを完全に防ぐ
+      strokeOpacity: traceOpacity.value === 0 ? 0 : fadeOut,
+      strokeWidth: traceOpacity.value === 0 ? 0 : 3, 
     };
   });
 
   const traceProps2 = useAnimatedProps(() => {
     const baseOffset = interpolate(spinProgress.value, [0, 1], [perimeter, 0]);
-    const offset = baseOffset - (perimeter * 0.5);
     const stroke = interpolateColor(colorProgress.value, [0, 1], ['#FFFFFF', task.color]);
-    const opacity = interpolate(fillProgress.value, [0, 0.2], [1, 0], 'clamp');
+    const fadeOut = interpolate(fillProgress.value, [0, 0.2], [1, 0], 'clamp');
+    
     return {
       strokeDasharray: `${perimeter * 0.15} ${perimeter}`,
-      strokeDashoffset: offset,
+      strokeDashoffset: baseOffset - (perimeter * 0.5),
       stroke,
-      opacity
+      // 💡 こちらも同様に追加
+      strokeOpacity: traceOpacity.value === 0 ? 0 : fadeOut,
+      strokeWidth: traceOpacity.value === 0 ? 0 : 3,
     };
   });
 
@@ -236,35 +210,8 @@ const CyberCard = ({ task, index, fillProgress }: {
       {/* 周回する光のエフェクト */}
       <View style={StyleSheet.absoluteFill}>
         <Svg width="100%" height="100%">
-          <Defs>
-            <RadialGradient id="vertexGlow" cx="50%" cy="50%" r="50%">
-              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.9" />
-              <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
-            </RadialGradient>
-          </Defs>
-          <AnimatedRect
-            x="0"
-            y="0"
-            width="100%"
-            height="100%"
-            rx="16"
-            fill="transparent"
-            strokeWidth="4"
-            animatedProps={traceProps1}
-          />
-          <AnimatedRect
-            x="0"
-            y="0"
-            width="100%"
-            height="100%"
-            rx="16"
-            fill="transparent"
-            strokeWidth="4"
-            animatedProps={traceProps2}
-          />
-          {/* 星のエフェクト */}
-          <StellarPoint cardIndex={index} isTop={true} color={task.color} fillProgress={fillProgress} />
-          <StellarPoint cardIndex={index} isTop={false} color={task.color} fillProgress={fillProgress} />
+          <AnimatedRect x="0" y="0" width="100%" height="100%" rx="16" fill="transparent" animatedProps={traceProps1} />
+          <AnimatedRect x="0" y="0" width="100%" height="100%" rx="16" fill="transparent" animatedProps={traceProps2} />
         </Svg>
       </View>
 
