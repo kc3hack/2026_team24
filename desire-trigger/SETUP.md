@@ -59,8 +59,9 @@ git --version
 EXPO_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxxx.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
-# Gemini API (Edge Functions用)
-# ※ これはSupabase Edge Functionsのシークレットとして設定
+# AI API Keys (Edge Functions用)
+# ※ これらはSupabase Edge Functionsのシークレットとして設定
+# ※ 優先順位: OpenAI → Gemini 1 → Gemini 2 → Gemini 3 → Gemini 4
 ```
 
 #### Supabase プロジェクトの設定
@@ -210,8 +211,20 @@ supabase login
 # プロジェクトをリンク
 supabase link --project-ref xxxxxxxxxxxxx
 
-# Gemini API Keyをシークレットに設定
-supabase secrets set GEMINI_API_KEY=AIzaSy...
+# AI API Keysをシークレットに設定（フォールバックシステム）
+# 優先順位: OpenAI → Gemini 1 → Gemini 2 → Gemini 3 → Gemini 4
+
+# OpenAI API Key (メイン)
+supabase secrets set OPENAI_API_KEY=sk-...
+
+# Gemini API Keys (フォールバック用、最大4つまで)
+supabase secrets set GEMINI_API_KEY_1=AIzaSy...
+supabase secrets set GEMINI_API_KEY_2=AIzaSy...
+supabase secrets set GEMINI_API_KEY_3=AIzaSy...
+supabase secrets set GEMINI_API_KEY_4=AIzaSy...
+
+# 注意: すべてのキーを設定する必要はありません
+# 設定されたキーを順番に試し、すべて失敗した場合のみエラーが返されます
 ```
 
 #### Edge Functions のデプロイ
@@ -230,11 +243,26 @@ supabase functions deploy generate-advice
 
 ---
 
-### 6. Gemini API キーの取得（参考情報 - 既に設定済み）
+### 6. AI API キーの取得（参考情報 - 既に設定済み）
 
 **注意**: 以下は参考情報です。既に設定済みなので、あなたが実行する必要はありません。
 
-**使用モデル**: `gemini-2.5-flash-lite`
+#### フォールバックシステム
+
+タスク生成には以下のAIモデルを使用し、順番に試します：
+
+1. **OpenAI** (メイン)
+   - モデル: `gpt-4o-mini`
+   - APIキー: `OPENAI_API_KEY`
+
+2. **Gemini** (フォールバック)
+   - モデル: `gemini-2.5-flash-lite`
+   - APIキー: `GEMINI_API_KEY_1`, `GEMINI_API_KEY_2`, `GEMINI_API_KEY_3`, `GEMINI_API_KEY_4`
+
+**動作仕様**:
+- OpenAI が成功すれば、Gemini は使用されません
+- OpenAI が失敗した場合、Gemini 1 → 2 → 3 → 4 の順に試します
+- すべてのAPIが失敗した場合のみ、エラーが返されます
 
 ---
 
@@ -321,7 +349,8 @@ npx expo start --android
 ### ⚠️ 秘密情報（個別に共有）
 - **Supabase URL**
 - **Supabase Anon Key**
-- **Gemini API Key**
+- **OpenAI API Key** (メイン)
+- **Gemini API Keys** (フォールバック用、最大4つ)
 
 ---
 
@@ -413,11 +442,17 @@ supabase functions deploy generate-advice --no-verify-jwt
 
 ### Q5: タスクが生成されない
 
-- Gemini API Key が正しく設定されているか確認:
+- AI API Keys が正しく設定されているか確認:
   ```bash
   supabase secrets list
   ```
-- Edge Functions のログでエラーを確認
+  少なくとも OPENAI_API_KEY または GEMINI_API_KEY_1 のいずれかが設定されている必要があります
+
+- Edge Functions のログでエラーを確認:
+  ```bash
+  supabase functions logs generate-tasks-and-advice
+  ```
+  フォールバックの動作（どのAPIが成功/失敗したか）も確認できます
 
 ---
 

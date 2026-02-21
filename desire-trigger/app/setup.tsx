@@ -176,7 +176,7 @@ export default function SetupScreen() {
       // 2. Create Supabase Profile
       const profileId = await createUser({
         name: formData.userName,
-        job_title: finalTech[0] || 'エンジニア', // 最初の技術スタックを職種として使用
+        job_title: finalTech,
         hobbies: finalHobbies,
         interests: finalTech,
         current_mode: (formData.selectedMode as any) || 'exploration', // デフォルト値: exploration
@@ -209,7 +209,7 @@ export default function SetupScreen() {
       const data: [string, string][] = [
         ['profile_id', profileId],
         ['user_name', profile.name],
-        ['user_job_title', profile.job_title || ''],
+        ['user_job_title', JSON.stringify(profile.job_title || [])],
         ['user_hobbies', JSON.stringify(profile.hobbies || [])],
         ['user_interests', JSON.stringify(profile.interests || [])],
         ['user_current_mode', profile.current_mode || 'exploration'],

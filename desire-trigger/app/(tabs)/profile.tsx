@@ -23,6 +23,15 @@ export default function ProfileScreen() {
     const [notificationTime, setNotificationTime] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
+    // 初期値を保存（変更検知用）
+    const [initialValues, setInitialValues] = useState({
+        name: '',
+        favoriteTech: '',
+        hobbies: '',
+        worries: '',
+        notificationTime: '',
+    });
+
     // データ読み込み
     useEffect(() => {
         loadProfileData();
@@ -31,11 +40,19 @@ export default function ProfileScreen() {
     const loadProfileData = async () => {
         if (dataMode === 'mock') {
             // モックモードの場合
-            setName(MOCK_SETTINGS.name);
-            setFavoriteTech(MOCK_SETTINGS.favoriteTech);
-            setHobbies(MOCK_SETTINGS.hobbies);
-            setWorries(MOCK_SETTINGS.worries);
-            setNotificationTime(MOCK_SETTINGS.notificationTime);
+            const mockData = {
+                name: MOCK_SETTINGS.name,
+                favoriteTech: MOCK_SETTINGS.favoriteTech,
+                hobbies: MOCK_SETTINGS.hobbies,
+                worries: MOCK_SETTINGS.worries,
+                notificationTime: MOCK_SETTINGS.notificationTime,
+            };
+            setName(mockData.name);
+            setFavoriteTech(mockData.favoriteTech);
+            setHobbies(mockData.hobbies);
+            setWorries(mockData.worries);
+            setNotificationTime(mockData.notificationTime);
+            setInitialValues(mockData);
         } else {
             // Liveモード: AsyncStorageから実データを読み込み
             try {
@@ -55,20 +72,44 @@ export default function ProfileScreen() {
                     'worries',
                 ]);
 
-                setName(userName[1] || '');
-                setFavoriteTech(userJobTitle[1] || (userInterests[1] ? JSON.parse(userInterests[1]).join(', ') : ''));
-                setHobbies(userHobbies[1] ? JSON.parse(userHobbies[1]).join(', ') : '');
-                setWorries(worries[1] ? JSON.parse(worries[1]).join(', ') : '');
-                setNotificationTime(userNotifyTime[1] || '');
+                const loadedData = {
+                    name: userName[1] || '',
+                    favoriteTech: userJobTitle[1] ? JSON.parse(userJobTitle[1]).join(', ') : (userInterests[1] ? JSON.parse(userInterests[1]).join(', ') : ''),
+                    hobbies: userHobbies[1] ? JSON.parse(userHobbies[1]).join(', ') : '',
+                    worries: worries[1] ? JSON.parse(worries[1]).join(', ') : '',
+                    notificationTime: userNotifyTime[1] || '',
+                };
+
+                setName(loadedData.name);
+                setFavoriteTech(loadedData.favoriteTech);
+                setHobbies(loadedData.hobbies);
+                setWorries(loadedData.worries);
+                setNotificationTime(loadedData.notificationTime);
+                setInitialValues(loadedData);
             } catch (e) {
                 console.error('Failed to load profile data:', e);
             }
         }
     };
 
+    const hasChanges = () => {
+        return (
+            name !== initialValues.name ||
+            favoriteTech !== initialValues.favoriteTech ||
+            hobbies !== initialValues.hobbies ||
+            worries !== initialValues.worries ||
+            notificationTime !== initialValues.notificationTime
+        );
+    };
+
     const handleSave = async () => {
         if (dataMode === 'mock') {
             Alert.alert('Mock Mode', 'Mock modeでは保存できません');
+            return;
+        }
+
+        if (!hasChanges()) {
+            Alert.alert('変更なし', '変更された項目がありません');
             return;
         }
 
@@ -89,7 +130,7 @@ export default function ProfileScreen() {
             // 3. Supabaseに保存
             await updateUser(profileId, {
                 name: name,
-                job_title: techArray[0] || '',
+                job_title: techArray,
                 hobbies: hobbiesArray,
                 interests: techArray,
                 notify_time: notificationTime,
@@ -98,12 +139,21 @@ export default function ProfileScreen() {
             // 4. AsyncStorageにも保存
             await AsyncStorage.multiSet([
                 ['user_name', name],
-                ['user_job_title', techArray[0] || ''],
+                ['user_job_title', JSON.stringify(techArray)],
                 ['user_hobbies', JSON.stringify(hobbiesArray)],
                 ['user_interests', JSON.stringify(techArray)],
                 ['user_notify_time', notificationTime],
                 ['worries', JSON.stringify(worriesArray)],
             ]);
+
+            // 初期値を更新
+            setInitialValues({
+                name: name,
+                favoriteTech: favoriteTech,
+                hobbies: hobbies,
+                worries: worries,
+                notificationTime: notificationTime,
+            });
 
             Alert.alert('成功', 'プロフィールを保存しました');
         } catch (e) {
@@ -202,9 +252,12 @@ export default function ProfileScreen() {
                 {/* 保存ボタン */}
                 {dataMode === 'live' && (
                     <TouchableOpacity
-                        style={styles.saveButton}
+                        style={[
+                            styles.saveButton,
+                            (!hasChanges() || isSaving) && styles.saveButtonDisabled
+                        ]}
                         onPress={handleSave}
-                        disabled={isSaving}
+                        disabled={!hasChanges() || isSaving}
                         activeOpacity={0.7}
                     >
                         {isSaving ? (
@@ -309,6 +362,10 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
+    },
+    saveButtonDisabled: {
+        backgroundColor: 'rgba(100, 100, 100, 0.3)',
+        shadowOpacity: 0,
     },
     saveButtonText: {
         color: '#fff',

@@ -53,7 +53,7 @@ const convertTaskToMission = (task: DBTask): Mission => {
   };
 };
 
-// Tips配列
+// Tips配列（10個）
 const TIPS = [
   "💡 小さなタスクから始めると、達成感が得られやすくなります",
   "🎯 1つのタスクに集中することで、効率が2倍になります",
@@ -70,14 +70,26 @@ const TIPS = [
 export default function ResultFlowScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [scores, setScores] = useState<ParameterScores | null>(null);
   const [profileId, setProfileId] = useState('');
   const [diagnosticId, setDiagnosticId] = useState('');
-  const [currentTip, setCurrentTip] = useState('');
+  const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Tips自動切り替え（loading中）
+  useEffect(() => {
+    if (loading) {
+      setCurrentTipIndex(0);
+      const interval = setInterval(() => {
+        setCurrentTipIndex((prev) => (prev + 1) % TIPS.length);
+      }, 3500); // 3.5秒ごとに切り替え
+      return () => clearInterval(interval);
+    }
+  }, [loading]);
 
   const loadData = async () => {
     try {
@@ -99,11 +111,8 @@ export default function ResultFlowScreen() {
 
   const handleSelectOption = async (option: string) => {
     console.log("Selected timing:", option);
+    setSelectedOption(option);
     setLoading(true);
-
-    // ランダムなTipsを選択
-    const randomTip = TIPS[Math.floor(Math.random() * TIPS.length)];
-    setCurrentTip(randomTip);
 
     try {
       const { dataMode } = useDataModeStore.getState();
@@ -111,8 +120,9 @@ export default function ResultFlowScreen() {
       let generatedTasks: Mission[] = [];
 
       if (dataMode === 'mock') {
-        // mockモード: モックデータを使用
+        // mockモード: モックデータを使用（3秒待機）
         console.log('[MOCK MODE] Using mock tasks instead of AI');
+        await new Promise(resolve => setTimeout(resolve, 3000)); // 3秒待機
         generatedTasks = MOCK_MISSIONS;
       } else {
         // liveモード: 統合関数を呼び出し
@@ -136,7 +146,7 @@ export default function ResultFlowScreen() {
             answers: answers,
             availability: option,
             profile: {
-              job_title: techStack[0] || 'エンジニア',
+              job_title: techStack.length > 0 ? techStack : ['エンジニア'],
               hobbies: hobbies,
               interests: techStack,
             },
@@ -177,7 +187,7 @@ export default function ResultFlowScreen() {
       // AsyncStorageに保存
       await AsyncStorage.setItem('generated_tasks', JSON.stringify(generatedTasks));
 
-      // radar画面へ遷移
+      // radar画面へ遷移（loading状態のまま遷移）
       router.push('/question/radar');
 
     } catch (e) {
@@ -185,9 +195,10 @@ export default function ResultFlowScreen() {
       // エラーでも遷移（モックデータを保存）
       await AsyncStorage.setItem('generated_tasks', JSON.stringify(MOCK_MISSIONS));
       router.push('/question/radar');
-    } finally {
-      setLoading(false);
     }
+    // 注意: finally ブロックでsetLoading(false)を呼ばない
+    // 遷移するため、コンポーネントがアンマウントされるので不要
+    // setLoading(false)を呼ぶと、遷移前に一瞬「いつやりますか？」が表示されてしまう
   };
 
   return (
@@ -202,26 +213,26 @@ export default function ResultFlowScreen() {
         </View>
 
         <View style={styles.displayArea}>
-          <View style={styles.questionContainer}>
-            <Text style={styles.questionTitle}>いつやりますか？</Text>
-            <Text style={styles.questionSubtitle}>最適なタスクを提案します</Text>
-          </View>
-        </View>
-
-        <View style={styles.footer}>
           {loading ? (
-            <View style={styles.loadingContainer}>
-              <View style={[styles.actionButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <ActivityIndicator color={RADAR_THEME} />
-                <Text style={[styles.buttonText, { color: RADAR_THEME, marginTop: 8 }]}>GENERATING...</Text>
+            <View style={styles.loadingDisplayContainer}>
+              <View style={styles.loadingIndicatorWrapper}>
+                <ActivityIndicator size="large" color={RADAR_THEME} />
+                <Text style={styles.loadingTitle}>GENERATING...</Text>
               </View>
-              {currentTip && (
-                <View style={styles.tipContainer}>
-                  <Text style={styles.tipText}>{currentTip}</Text>
-                </View>
-              )}
+              <View style={styles.tipContainer}>
+                <Text style={styles.tipText}>{TIPS[currentTipIndex]}</Text>
+              </View>
             </View>
           ) : (
+            <View style={styles.questionContainer}>
+              <Text style={styles.questionTitle}>いつやりますか？</Text>
+              <Text style={styles.questionSubtitle}>最適なタスクを提案します</Text>
+            </View>
+          )}
+        </View>
+
+        {!loading && (
+          <View style={styles.footer}>
             <View style={styles.selectionContainer}>
               <TouchableOpacity onPress={() => handleSelectOption('morning')} style={styles.optionButtonLarge}>
                 <Text style={styles.optionTextLarge}>朝にする</Text>
@@ -233,8 +244,8 @@ export default function ResultFlowScreen() {
                 <Text style={styles.optionTextLarge}>夜にする</Text>
               </TouchableOpacity>
             </View>
-          )}
-        </View>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -263,6 +274,25 @@ const styles = StyleSheet.create({
     textShadowColor: RADAR_THEME,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
+  },
+  loadingDisplayContainer: {
+    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 40,
+  },
+  loadingIndicatorWrapper: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  loadingTitle: {
+    color: RADAR_THEME,
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 3,
+    marginTop: 16,
+    textShadowColor: RADAR_THEME,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   footer: { width: '100%', alignItems: 'center', paddingBottom: 40, paddingHorizontal: 20 },
   loadingContainer: { width: '100%', alignItems: 'center' },

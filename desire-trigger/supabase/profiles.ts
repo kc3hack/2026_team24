@@ -12,7 +12,6 @@ export async function createUser(data: OnboardingInput): Promise<string> {
             {
                 name: data.name,
                 job_title: data.job_title,
-                job_title_other: data.job_title_other,
                 hobbies: data.hobbies,
                 interests: data.interests,
                 current_mode: data.current_mode,

@@ -28,7 +28,7 @@ type GenerateRequest = {
     answers: QuestionAnswer[]
     availability: string // timing: 'now' | 'morning' | 'night' | 'auto'
     profile: {
-        job_title: string
+        job_title: string | string[] // 配列または文字列（後方互換性）
         hobbies: string[]
         interests: string[]
     }
@@ -40,7 +40,7 @@ type GeneratedTask = {
     title: string
     description: string
     level: 'quick' | 'core' | 'deep'
-    category: '探索系' | '集中系' | '実行系' | '休息系' | '貢献系'
+    category: '探索系' | '没頭系' | '整理系' | '貢献系' | '元気系'
 }
 
 type AdviceResponse = {
@@ -76,7 +76,7 @@ ${advicePrompt}
       "title": "タスクタイトル",
       "description": "説明",
       "level": "quick" | "core" | "deep",
-      "category": "探索系" | "集中系" | "実行系" | "休息系" | "貢献系"
+      "category": "探索系" | "没頭系" | "整理系" | "貢献系" | "元気系"
     }
   ],
   "advice": {
@@ -87,6 +87,9 @@ ${advicePrompt}
     "vitality": "元気スコアへのアドバイス"
   }
 }
+
+重要: categoryフィールドは必ず上記の5つのカテゴリのいずれか（探索系、没頭系、整理系、貢献系、元気系）を使用してください。
+英語名（exploration、immersion、vitality等）は使用しないでください。
 `
 
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -141,7 +144,7 @@ ${advicePrompt}
       "title": "タスクタイトル",
       "description": "説明",
       "level": "quick" | "core" | "deep",
-      "category": "探索系" | "集中系" | "実行系" | "休息系" | "貢献系"
+      "category": "探索系" | "没頭系" | "整理系" | "貢献系" | "元気系"
     }
   ],
   "advice": {
@@ -152,6 +155,9 @@ ${advicePrompt}
     "vitality": "元気スコアへのアドバイス"
   }
 }
+
+重要: categoryフィールドは必ず上記の5つのカテゴリのいずれか（探索系、没頭系、整理系、貢献系、元気系）を使用してください。
+英語名（exploration、immersion、vitality等）は使用しないでください。
 `
 
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`, {
@@ -226,7 +232,7 @@ function buildTasksPrompt(
 以下の状態に基づいて、最適なタスクを3つ提案してください。
 
 【エンジニア情報】
-職種: ${profile.job_title}
+職種: ${Array.isArray(profile.job_title) ? profile.job_title.join(', ') : profile.job_title}
 趣味: ${profile.hobbies.join(', ')}
 興味分野: ${profile.interests.join(', ')}
 
@@ -318,7 +324,10 @@ serve(async (req) => {
         } = await req.json() as GenerateRequest
 
         const OPENAI_KEY = Deno.env.get('OPENAI_API_KEY')
-        const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY')
+        const GEMINI_KEY_1 = Deno.env.get('GEMINI_API_KEY_1')
+        const GEMINI_KEY_2 = Deno.env.get('GEMINI_API_KEY_2')
+        const GEMINI_KEY_3 = Deno.env.get('GEMINI_API_KEY_3')
+        const GEMINI_KEY_4 = Deno.env.get('GEMINI_API_KEY_4')
 
         // 1. タスク難易度を決定（vitalityベース）
         const vitality = scores.vitality
@@ -374,24 +383,42 @@ serve(async (req) => {
         const tasksPrompt = buildTasksPrompt(scores, profile, availability, taskLevels, targetCategories, previous_titles)
         const advicePrompt = buildAdvicePrompt(answers, scores)
 
-        // 4. AI呼び出し（OpenAI → Gemini フォールバック）
-        let result: CombinedResponse
+        // 4. AI呼び出し（OpenAI → Gemini 1,2,3,4 フォールバック）
+        let result: CombinedResponse | null = null
+        const errors: string[] = []
 
-        try {
-            if (!OPENAI_KEY) {
-                throw new Error('OPENAI_API_KEY not set, trying Gemini fallback')
+        // 試行順: OpenAI → Gemini 1 → Gemini 2 → Gemini 3 → Gemini 4
+        const apiAttempts = [
+            { name: 'OpenAI', key: OPENAI_KEY, fn: callOpenAI },
+            { name: 'Gemini_1', key: GEMINI_KEY_1, fn: callGemini },
+            { name: 'Gemini_2', key: GEMINI_KEY_2, fn: callGemini },
+            { name: 'Gemini_3', key: GEMINI_KEY_3, fn: callGemini },
+            { name: 'Gemini_4', key: GEMINI_KEY_4, fn: callGemini },
+        ]
+
+        for (const attempt of apiAttempts) {
+            if (!attempt.key) {
+                console.log(`${attempt.name}: API key not set, skipping...`)
+                errors.push(`${attempt.name}: API key not configured`)
+                continue
             }
-            console.log("Calling OpenAI gpt-4o-mini...")
-            result = await callOpenAI(OPENAI_KEY, tasksPrompt, advicePrompt)
-        } catch (openaiError) {
-            console.error("OpenAI failed:", openaiError)
 
-            if (!GEMINI_KEY) {
-                throw new Error('Both OPENAI_API_KEY and GEMINI_API_KEY are not set')
+            try {
+                console.log(`Trying ${attempt.name}...`)
+                result = await attempt.fn(attempt.key, tasksPrompt, advicePrompt)
+                console.log(`✓ ${attempt.name} succeeded`)
+                break // 成功したらループを抜ける
+            } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error)
+                console.error(`✗ ${attempt.name} failed:`, errorMsg)
+                errors.push(`${attempt.name}: ${errorMsg}`)
+                // 次のAPIを試す
             }
+        }
 
-            console.log("Falling back to Gemini 2.5 Flash Lite...")
-            result = await callGemini(GEMINI_KEY, tasksPrompt, advicePrompt)
+        // すべてのAPIが失敗した場合
+        if (!result) {
+            throw new Error(`All AI APIs failed:\n${errors.join('\n')}`)
         }
 
         if (!result.tasks || result.tasks.length !== 3) {
