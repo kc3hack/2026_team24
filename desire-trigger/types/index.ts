@@ -80,14 +80,12 @@ export interface Metrics {
     vitality: number;      // 0-100
 }
 
-export type JobTitle = 'Frontend' | 'Backend' | 'Infra' | 'ML/Data' | 'Mobile' | 'Student' | 'Other';
 export type CurrentMode = '成長期' | '維持期' | '停滞期';
 
 export interface DBProfile {
     id: string;
     name: string;
-    job_title: JobTitle;
-    job_title_other?: string;
+    job_title: string[];
     hobbies: string[];
     interests: string[];
     current_mode: CurrentMode;
@@ -98,8 +96,7 @@ export interface DBProfile {
 
 export interface OnboardingInput {
     name: string;
-    job_title: JobTitle;
-    job_title_other?: string;
+    job_title: string[];
     hobbies: string[];
     interests: string[];
     current_mode: CurrentMode;

@@ -275,13 +275,15 @@ export default function SupernovaWelcome() {
       </Animated.View>
 
       {/* Settings/Debug Button (歯車アイコン) */}
-      <TouchableOpacity
-        onPress={() => setDebugModalVisible(true)}
-        style={styles.settingsButton}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="settings-outline" size={24} color="rgba(255,255,255,0.5)" />
-      </TouchableOpacity>
+      <Animated.View style={{ opacity: uiFade }}>
+        <TouchableOpacity
+          onPress={() => setDebugModalVisible(true)}
+          style={styles.settingsButton}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="settings-outline" size={24} color="rgba(255,255,255,0.5)" />
+        </TouchableOpacity>
+      </Animated.View>
 
       {/* Debug Modal */}
       <Modal

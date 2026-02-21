@@ -20,6 +20,44 @@ export default function ActionScreen() {
 
     const translateX = useRef(new Animated.Value(0)).current;
     const scrollY = useRef(new Animated.Value(0)).current;
+    const timerPulse = useRef(new Animated.Value(1)).current;
+
+    // 初回マウント時にタイマーを強調（パルス効果）
+    useEffect(() => {
+        // 3回パルス効果を繰り返す
+        Animated.sequence([
+            Animated.timing(timerPulse, {
+                toValue: 1.15,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+            Animated.timing(timerPulse, {
+                toValue: 1,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+            Animated.timing(timerPulse, {
+                toValue: 1.15,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+            Animated.timing(timerPulse, {
+                toValue: 1,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+            Animated.timing(timerPulse, {
+                toValue: 1.15,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+            Animated.timing(timerPulse, {
+                toValue: 1,
+                duration: 600,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, []);
 
     // 日付セットごとのdeadlineまでのカウントダウン
     useEffect(() => {
@@ -172,10 +210,29 @@ export default function ActionScreen() {
                 {/* Daily Countdown Timer */}
                 <Animated.View
                     pointerEvents="none"
-                    style={[styles.timerWrapper, { opacity: timerOpacity, transform: [{ translateY: timerTranslateY }] }]}
+                    style={[
+                        styles.timerWrapper,
+                        {
+                            opacity: timerOpacity,
+                            transform: [
+                                { translateY: timerTranslateY },
+                                { scale: timerPulse }
+                            ]
+                        }
+                    ]}
                 >
                     <Text style={styles.timerLabel}>REMAINING_TIME</Text>
                     <Text style={styles.dailyTimer}>{timeLeft}</Text>
+                </Animated.View>
+
+                {/* Decorative Divider */}
+                <Animated.View
+                    pointerEvents="none"
+                    style={[styles.dividerContainer, { opacity: timerOpacity }]}
+                >
+                    <View style={styles.dividerLine} />
+                    <View style={styles.dividerDot} />
+                    <View style={styles.dividerLine} />
                 </Animated.View>
 
                 {/* タスクカード表示エリア（水平スワイプ対応） */}
@@ -286,6 +343,30 @@ const styles = StyleSheet.create({
         textShadowColor: Colors.primary,
         textShadowOffset: { width: 0, height: 0 },
         textShadowRadius: 10,
+    },
+    dividerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 20,
+        paddingHorizontal: 60,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: Colors.primary,
+        opacity: 0.3,
+    },
+    dividerDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: Colors.primary,
+        marginHorizontal: 12,
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 6,
     },
     carouselContainer: {
         flex: 1,
