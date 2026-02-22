@@ -2,12 +2,12 @@
 <!-- プロダクト名に変更してください -->
 > ITエンジニアの状態を数値化し、今の自分に最適な行動を提示するアプリ
 
-![プロダクト名](https://kc3.me/cms/wp-content/uploads/2026/02/444e7120d5cdd74aa75f7a94bf8821a5-scaled.png)
 <!-- プロダクト名・イメージ画像を差し変えてください -->
+<img width="1538" height="1025" alt="desire_trigger_logo_final" src="https://github.com/user-attachments/assets/64d0b3a8-3b28-44d0-98c1-52a23d7ba704" />
 
 
 ## チーム名
-チーム4 焼肉食べ隊
+チーム24 焼肉食べ隊
 <!-- チームIDとチーム名を入力してください -->
 
 # 1. プロダクト概要
