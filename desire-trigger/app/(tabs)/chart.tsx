@@ -13,6 +13,7 @@ import { getLatestDiagnostic } from '../../supabase/diagnostics';
 import { Diagnostic } from '../../types';
 import { SpaceBackground } from '../../components/ui/SpaceBackground';
 import { useDataModeStore } from '../../store/dataModeStore';
+import { Colors } from '../../constants/Colors';
 
 export default function ChartScreen() {
     const [selectedMetric, setSelectedMetric] = useState<MetricKey>('immersion');
@@ -147,16 +148,18 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     headerLabel: {
-        color: '#94a3b8',
         fontSize: 12,
+        fontFamily: 'monospace',
+        color: Colors.textDim,
+        letterSpacing: 2,
         fontWeight: 'bold',
         marginBottom: 4,
-        letterSpacing: 1.5,
     },
     headerTitle: {
-        color: '#f8fafc',
-        fontSize: 24,
-        fontWeight: 'bold',
+        fontSize: 32,
+        fontWeight: '900',
+        color: Colors.text,
+        letterSpacing: 1,
     },
     sectionContainer: {
         alignItems: 'center',

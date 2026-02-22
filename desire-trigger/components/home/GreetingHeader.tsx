@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Colors } from '../../constants/Colors';
 
 type Props = {
     userName: string;
@@ -7,11 +8,29 @@ type Props = {
 
 export default function GreetingHeader({ userName }: Props) {
     return (
-        <View className="mb-6">
-            <Text className="text-slate-400 text-xs font-bold mb-1 tracking-[0.15em]">DASHBOARD</Text>
-            <Text className="text-slate-50 text-2xl font-bold">
-                ステータス概要
-            </Text>
+        <View style={styles.container}>
+            <Text style={styles.headerLabel}>DASHBOARD</Text>
+            <Text style={styles.headerTitle}>ステータス概要</Text>
         </View>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        marginBottom: 24,
+    },
+    headerLabel: {
+        fontSize: 12,
+        fontFamily: 'monospace',
+        color: Colors.textDim,
+        letterSpacing: 2,
+        fontWeight: 'bold',
+        marginBottom: 4,
+    },
+    headerTitle: {
+        fontSize: 32,
+        fontWeight: '900',
+        color: Colors.text,
+        letterSpacing: 1,
+    },
+});

@@ -29,8 +29,8 @@ type GenerateRequest = {
     availability: string // timing: 'now' | 'morning' | 'night' | 'auto'
     profile: {
         job_title: string | string[] // 配列または文字列（後方互換性）
-        hobbies: string[]
-        interests: string[]
+        hobbies: string | string[] // 配列または文字列（後方互換性）
+        interests: string | string[] // 配列または文字列（後方互換性）
     }
     previous_titles?: string[] // 重複防止用
     userContext?: { currentMode?: string }
@@ -232,9 +232,9 @@ function buildTasksPrompt(
 以下の状態に基づいて、最適なタスクを3つ提案してください。
 
 【エンジニア情報】
-職種: ${Array.isArray(profile.job_title) ? profile.job_title.join(', ') : profile.job_title}
-趣味: ${profile.hobbies.join(', ')}
-興味分野: ${profile.interests.join(', ')}
+職種: ${Array.isArray(profile.job_title) ? profile.job_title.join(', ') : (profile.job_title || '未設定')}
+趣味: ${Array.isArray(profile.hobbies) ? profile.hobbies.join(', ') : (profile.hobbies || '未設定')}
+興味分野: ${Array.isArray(profile.interests) ? profile.interests.join(', ') : (profile.interests || '未設定')}
 
 【今日のメンタル状態】
 探索: ${metrics.exploration}/100

@@ -14,6 +14,7 @@ import { MetricKey } from '../../types';
 import { calcStreak } from '../../lib/calcStreak';
 import { useDataModeStore } from '../../store/dataModeStore';
 import { SpaceBackground } from '../../components/ui/SpaceBackground';
+import { Colors } from '../../constants/Colors';
 
 // パラメータ名のマッピング（MetricKey → 日本語）
 const metricToJapanese: Record<MetricKey, string> = {
@@ -271,10 +272,8 @@ export default function HistoryScreen() {
                 {/* Header with Streak */}
                 <View className="mb-8 flex-row justify-between items-end">
                     <View>
-                        <Text className="text-gray-400 text-xs font-bold mb-1 tracking-widest">
-                            ACTIVITY LOG
-                        </Text>
-                        <Text className="text-white text-3xl font-bold">履歴</Text>
+                        <Text style={styles.headerLabel}>ACTIVITY LOG</Text>
+                        <Text style={styles.headerTitle}>履歴</Text>
                     </View>
                     <View className="bg-orange-900/40 px-3 py-1 rounded-full border border-orange-500/30 flex-row items-center">
                         <Feather name="zap" size={14} color="#fb923c" />
@@ -359,5 +358,19 @@ const styles = StyleSheet.create({
     },
     safeArea: {
         flex: 1,
+    },
+    headerLabel: {
+        fontSize: 12,
+        fontFamily: 'monospace',
+        color: Colors.textDim,
+        letterSpacing: 2,
+        fontWeight: 'bold',
+        marginBottom: 4,
+    },
+    headerTitle: {
+        fontSize: 32,
+        fontWeight: '900',
+        color: Colors.text,
+        letterSpacing: 1,
     },
 });

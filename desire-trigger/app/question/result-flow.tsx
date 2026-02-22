@@ -126,15 +126,20 @@ export default function ResultFlowScreen() {
         generatedTasks = MOCK_MISSIONS;
       } else {
         // liveモード: 統合関数を呼び出し
-        const [techStackStr, hobbiesStr, answersStr] = await AsyncStorage.multiGet([
-          'techStack',
-          'hobbies',
-          'current_answers',
-        ]);
+        // DBから最新のプロフィールを取得
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('job_title, hobbies, interests')
+          .eq('id', profileId)
+          .single();
 
-        const techStack = techStackStr[1] ? JSON.parse(techStackStr[1]) : [];
-        const hobbies = hobbiesStr[1] ? JSON.parse(hobbiesStr[1]) : [];
-        const answers = answersStr[1] ? JSON.parse(answersStr[1]) : [];
+        if (profileError) {
+          console.error('Failed to fetch profile:', profileError);
+          throw profileError;
+        }
+
+        const answersStr = await AsyncStorage.getItem('current_answers');
+        const answers = answersStr ? JSON.parse(answersStr) : [];
 
         const previousTitles = await getPreviousTitles(profileId);
 
@@ -146,9 +151,9 @@ export default function ResultFlowScreen() {
             answers: answers,
             availability: option,
             profile: {
-              job_title: techStack.length > 0 ? techStack : ['エンジニア'],
-              hobbies: hobbies,
-              interests: techStack,
+              job_title: profileData.job_title || ['エンジニア'],
+              hobbies: profileData.hobbies || [],
+              interests: profileData.interests || [],
             },
             previous_titles: previousTitles,
           },
