@@ -105,7 +105,7 @@ export const TaskCarousel = forwardRef<Animated.FlatList, TaskCarouselProps>(({ 
                 decelerationRate="fast"
                 // Minimal padding for compact layout
                 contentContainerStyle={{
-                    paddingTop: 20,
+                    paddingTop: 220, // タイマー・ディバイダーの下に配置
                     paddingBottom: SPACER_HEIGHT,
                     alignItems: 'center',
                 }}
