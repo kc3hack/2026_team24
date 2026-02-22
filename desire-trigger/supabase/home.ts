@@ -3,6 +3,7 @@ import { HomeData, Diagnostic, MetricKey } from '../types';
 import { getUser } from './profiles';
 import { getLatestDiagnostic } from './diagnostics';
 import { useDataModeStore } from '../store/dataModeStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * ホーム画面用のデータを一括取得
@@ -16,11 +17,15 @@ export async function getHomeData(profileId: string, sessionDate: string): Promi
             console.log('[MOCK MODE] Using mock home data');
             const { MOCK_SETTINGS, generateMockDiagnostics } = await import('../constants/mockData');
 
+            // AsyncStorageから診断データをチェック
+            const scoresStr = await AsyncStorage.getItem('current_scores');
+            const hasCompletedDiagnostic = !!scoresStr;
+
             const mockDiagnostics = generateMockDiagnostics();
             const latestDiagnostic = mockDiagnostics[0] || null;
 
-            // モックモードでは常に質問回答可能にする
-            const todayAnswered = false;
+            // 診断完了データがあれば todayAnswered = true
+            const todayAnswered = hasCompletedDiagnostic;
 
             // Task summary (mock values)
             const taskSummary = {
