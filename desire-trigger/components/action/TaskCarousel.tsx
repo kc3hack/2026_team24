@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, forwardRef } from 'react';
 import { View, Animated, StyleSheet } from 'react-native';
 import { Task } from '../../types';
 import { TaskCard } from './TaskCard';
@@ -11,7 +11,7 @@ interface TaskCarouselProps {
     scrollY: Animated.Value;
 }
 
-export const TaskCarousel: React.FC<TaskCarouselProps> = ({ tasks, onTaskPress, onCommit, scrollY }) => {
+export const TaskCarousel = forwardRef<Animated.FlatList, TaskCarouselProps>(({ tasks, onTaskPress, onCommit, scrollY }, ref) => {
 
     const renderItem = ({ item, index }: { item: Task, index: number }) => {
         const inputRange = [
@@ -97,14 +97,15 @@ export const TaskCarousel: React.FC<TaskCarouselProps> = ({ tasks, onTaskPress, 
     return (
         <View style={styles.container}>
             <Animated.FlatList
+                ref={ref}
                 data={tasks}
                 keyExtractor={(item) => item.id}
                 showsVerticalScrollIndicator={false}
                 snapToInterval={ITEM_HEIGHT}
                 decelerationRate="fast"
-                // Add vertical padding evenly to center first and last items
+                // Minimal padding for compact layout
                 contentContainerStyle={{
-                    paddingTop: SPACER_HEIGHT,
+                    paddingTop: 20,
                     paddingBottom: SPACER_HEIGHT,
                     alignItems: 'center',
                 }}
@@ -119,11 +120,10 @@ export const TaskCarousel: React.FC<TaskCarouselProps> = ({ tasks, onTaskPress, 
                     offset: ITEM_HEIGHT * index,
                     index,
                 })}
-                initialScrollIndex={Math.max(0, Math.floor(tasks.length / 2))}
             />
         </View>
     );
-};
+});
 
 const styles = StyleSheet.create({
     container: {

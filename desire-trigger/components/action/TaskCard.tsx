@@ -29,6 +29,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onCommit, ani
             case 'IMMERSION': return '#00FF9D'; // Green
             case 'ORGANIZATION': return '#BD00FF'; // Purple
             case 'CONTRIBUTION': return '#FF9F1C'; // Orange
+            case 'VITALITY': return '#06B6D4'; // Cyan (元気系)
             case 'REST': return '#00F0FF'; // Cyan
             default: return '#00F0FF';
         }
@@ -40,6 +41,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onCommit, ani
             case 'IMMERSION': return '没頭';
             case 'ORGANIZATION': return '整理';
             case 'CONTRIBUTION': return '貢献';
+            case 'VITALITY': return '元気';
             case 'REST': return '休息';
             default: return mode;
         }

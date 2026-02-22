@@ -9,6 +9,7 @@ import { saveDiagnosticResult, markDiagnosticAnswered } from '../../supabase/dia
 import { supabase } from '../../supabase/client';
 import { DBQuestion, QuestionAnswer } from '../../types';
 import { addAnsweredQuestionId } from '../../lib/answeredQuestions';
+import { useDataModeStore } from '../../store/dataModeStore';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -47,22 +48,8 @@ export default function QuestionCompleteScreen() {
         throw new Error('診断データが見つかりません');
       }
 
-      // 🎯 パラメータ表示前に「回答済み」フラグを立てる
-      // これにより、ホーム画面が即座に「今日は回答済み」と認識できる
-      // （ただし、まだパラメータやアドバイスは保存されていない状態）
-      setStatusText('回答を保存中...');
-
-      // 1. 診断レコードにanswersを保存（パラメータ計算前）
-      await markDiagnosticAnswered(diagnosticId, answers);
-
-      // 2. 回答済み質問IDをAsyncStorageに追加
-      const profileId = await AsyncStorage.getItem('profile_id');
-      if (profileId) {
-        for (const answer of answers) {
-          const questionId = parseInt(answer.question_id, 10);
-          await addAnsweredQuestionId(profileId, questionId);
-        }
-      }
+      const { dataMode } = useDataModeStore.getState();
+      const isMock = dataMode === 'mock';
 
       // パラメータ計算
       setStatusText('パラメータを計算中...');
@@ -70,7 +57,6 @@ export default function QuestionCompleteScreen() {
 
       // answersWithText を準備（result-flowで使用）
       const answersWithText = answers.map(a => {
-        // 🔧 型変換対応：question_id が文字列でも数値でも対応
         const questionIdNumber = typeof a.question_id === 'string'
           ? parseInt(a.question_id, 10)
           : a.question_id;
@@ -81,13 +67,32 @@ export default function QuestionCompleteScreen() {
         };
       });
 
-      // 診断結果を保存（アドバイスはresult-flowで生成・保存される）
-      setStatusText('結果を保存中...');
-      await saveDiagnosticResult(diagnosticId, {
-        answers,
-        scores,
-        advice: null, // アドバイスはresult-flowで生成される
-      });
+      // mockモードではDB操作をスキップ
+      if (!isMock) {
+        setStatusText('回答を保存中...');
+
+        // 1. 診断レコードにanswersを保存
+        await markDiagnosticAnswered(diagnosticId, answers);
+
+        // 2. 回答済み質問IDをAsyncStorageに追加
+        const profileId = await AsyncStorage.getItem('profile_id');
+        if (profileId) {
+          for (const answer of answers) {
+            const questionId = parseInt(answer.question_id, 10);
+            await addAnsweredQuestionId(profileId, questionId);
+          }
+        }
+
+        // 3. 診断結果を保存
+        setStatusText('結果を保存中...');
+        await saveDiagnosticResult(diagnosticId, {
+          answers,
+          scores,
+          advice: null, // アドバイスはresult-flowで生成される
+        });
+      } else {
+        console.log('[Mock Mode] Skipping DB operations');
+      }
 
       // AsyncStorageに scores と answers を保存（result-flowで使用）
       await AsyncStorage.setItem('current_scores', JSON.stringify(scores));

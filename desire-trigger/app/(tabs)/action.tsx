@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Text, StatusBar, Animated, Dimensions, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { TaskCarousel } from '../../components/action/TaskCarousel';
 import { TaskDetailModal } from '../../components/action/TaskDetailModal';
@@ -21,6 +22,22 @@ export default function ActionScreen() {
     const translateX = useRef(new Animated.Value(0)).current;
     const scrollY = useRef(new Animated.Value(0)).current;
     const timerPulse = useRef(new Animated.Value(1)).current;
+    const carouselRef = useRef<Animated.FlatList>(null);
+
+    // 画面フォーカス時にスクロール位置を先頭にリセット
+    useFocusEffect(
+        useCallback(() => {
+            // scrollYもリセット
+            scrollY.setValue(0);
+
+            // FlatListのスクロール位置をリセット
+            setTimeout(() => {
+                if (carouselRef.current) {
+                    carouselRef.current.scrollToOffset({ offset: 0, animated: false });
+                }
+            }, 0);
+        }, [])
+    );
 
     // 初回マウント時にタイマーを強調（パルス効果）
     useEffect(() => {
@@ -243,6 +260,7 @@ export default function ActionScreen() {
                 >
                     <Animated.View style={styles.carouselContainer}>
                         <TaskCarousel
+                            ref={carouselRef}
                             tasks={currentTasks}
                             onTaskPress={setSelectedTask}
                             onCommit={handleCommit}
@@ -272,8 +290,8 @@ const styles = StyleSheet.create({
     },
     header: {
         paddingHorizontal: 20,
-        paddingTop: 20,
-        paddingBottom: 10,
+        paddingTop: 12,
+        paddingBottom: 4,
     },
     headerLabel: {
         fontSize: 12,
@@ -294,8 +312,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        paddingVertical: 16,
-        marginTop: 24, // 40 → 24 に変更（16px上に移動）
+        paddingVertical: 8,
+        marginTop: 16,
         gap: 20,
     },
     navButton: {
@@ -325,7 +343,7 @@ const styles = StyleSheet.create({
         width: '100%',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 12, // 20 → 12 に変更（8px上に移動）
+        paddingVertical: 8,
     },
     timerLabel: {
         fontSize: 12,
@@ -348,7 +366,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 20,
+        paddingVertical: 8,
         paddingHorizontal: 60,
     },
     dividerLine: {
@@ -370,7 +388,7 @@ const styles = StyleSheet.create({
     },
     carouselContainer: {
         flex: 1,
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         alignItems: 'center',
     },
 });

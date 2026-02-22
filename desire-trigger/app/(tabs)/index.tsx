@@ -55,14 +55,17 @@ export default function HomeScreen() {
       setHomeData(data);
 
       // 4. 今日まだ回答していない場合：質問を取得して準備
-      if (!data.todayAnswered) {
+      // mockモードでは常に質問を準備（何度でも診断可能）
+      if (!data.todayAnswered || dataMode === 'mock') {
         // 既に質問が準備済みかチェック
         const existingQuestions = await AsyncStorage.getItem('current_questions');
         const existingDiagnosticId = await AsyncStorage.getItem('current_diagnostic_id');
 
         if (!existingQuestions || !existingDiagnosticId) {
-          // 診断レコードを作成
-          const diagnosticId = await createDiagnostic(profileId, sessionDate);
+          // 診断レコードを作成（mockモードでは仮ID）
+          const diagnosticId = dataMode === 'mock'
+            ? `mock_${Date.now()}`
+            : await createDiagnostic(profileId, sessionDate);
 
           // ランダム質問を取得
           const questions = await getRandomQuestions(profileId);
@@ -97,8 +100,34 @@ export default function HomeScreen() {
     }
   };
 
-  const handleLaunch = () => {
-    router.push('/question/transition-home'as unknown as any);
+  const handleLaunch = async () => {
+    // mockモードでは質問データをクリアして新しい診断を準備
+    if (dataMode === 'mock') {
+      await AsyncStorage.multiRemove([
+        'current_diagnostic_id',
+        'current_questions',
+        'current_answers',
+        'current_question_index',
+      ]);
+      console.log('[Mock Mode] Question data cleared - preparing new diagnostic');
+
+      // 質問を準備
+      const profileId = await AsyncStorage.getItem('profile_id');
+      if (profileId) {
+        const mockDiagnosticId = `mock_${Date.now()}`;
+        const questions = await getRandomQuestions(profileId);
+
+        await AsyncStorage.multiSet([
+          ['current_diagnostic_id', mockDiagnosticId],
+          ['current_questions', JSON.stringify(questions)],
+          ['current_answers', JSON.stringify([])],
+          ['current_question_index', '0'],
+        ]);
+
+        console.log('[Mock Mode] Questions prepared:', questions.length);
+      }
+    }
+    router.push('/question/transition-home' as unknown as any);
   };
 
   if (loading) {
@@ -137,7 +166,7 @@ export default function HomeScreen() {
         {/* Launch Button */}
         <View className="mb-8 mt-4">
           <LaunchButton
-            isDiagnosed={homeData?.todayAnswered || false}
+            isDiagnosed={dataMode === 'mock' ? false : (homeData?.todayAnswered || false)}
             onPress={handleLaunch}
             showTooltip={showTooltip}
           />
