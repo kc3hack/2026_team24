@@ -76,6 +76,12 @@ export default function ProfileScreen() {
             <SafeAreaView style={styles.safeArea}>
                 <ScrollView contentContainerStyle={styles.scrollContent}>
 
+                    {/* Page Header */}
+                    <View style={styles.pageHeader}>
+                        <Text style={styles.headerLabel}>PROFILE</Text>
+                        <Text style={styles.headerTitle}>プロフィール</Text>
+                    </View>
+
                     {/* Avatar Section */}
                     <View style={styles.header}>
                         <View style={styles.avatarContainer}>
@@ -262,5 +268,25 @@ const styles = StyleSheet.create({
         marginLeft: 8,
         fontFamily: 'monospace',
         fontWeight: 'bold',
+    },
+    pageHeader: {
+        paddingHorizontal: 20,
+        paddingTop: 12,
+        paddingBottom: 4,
+        width: '100%',
+    },
+    headerLabel: {
+        fontSize: 12,
+        fontFamily: 'monospace',
+        color: Colors.textDim,
+        letterSpacing: 2,
+        fontWeight: 'bold',
+        marginBottom: 4,
+    },
+    headerTitle: {
+        fontSize: 32,
+        fontWeight: '900',
+        color: Colors.text,
+        letterSpacing: 1,
     },
 });
