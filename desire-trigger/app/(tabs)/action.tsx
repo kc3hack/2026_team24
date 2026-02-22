@@ -193,7 +193,16 @@ export default function ActionScreen() {
                 </View>
 
                 {/* ナビゲーションエリア（日付表示 + 左右ボタン） */}
-                <View style={styles.navigationArea}>
+                <Animated.View
+                    pointerEvents="auto"
+                    style={[
+                        styles.navigationArea,
+                        {
+                            opacity: timerOpacity,
+                            transform: [{ translateY: timerTranslateY }]
+                        }
+                    ]}
+                >
                     {/* 左ボタン（前の日付へ） */}
                     {currentSetIndex > 0 && (
                         <TouchableOpacity
@@ -222,7 +231,7 @@ export default function ActionScreen() {
                             <Ionicons name="chevron-forward" size={24} color={Colors.primary} />
                         </TouchableOpacity>
                     )}
-                </View>
+                </Animated.View>
 
                 {/* Daily Countdown Timer */}
                 <Animated.View
@@ -309,11 +318,14 @@ const styles = StyleSheet.create({
     },
     // ナビゲーションエリア：REMAINING_TIMEの上
     navigationArea: {
+        position: 'absolute',
+        top: 130,
+        left: 0,
+        right: 0,
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        paddingVertical: 8,
-        marginTop: 16,
+        zIndex: 10,
         gap: 20,
     },
     navButton: {
@@ -340,10 +352,13 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
     },
     timerWrapper: {
-        width: '100%',
+        position: 'absolute',
+        top: 200,
+        left: 0,
+        right: 0,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 8,
+        zIndex: 10,
     },
     timerLabel: {
         fontSize: 12,
@@ -363,11 +378,14 @@ const styles = StyleSheet.create({
         textShadowRadius: 10,
     },
     dividerContainer: {
+        position: 'absolute',
+        top: 290,
+        left: 60,
+        right: 60,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 60,
+        zIndex: 10,
     },
     dividerLine: {
         flex: 1,
@@ -390,5 +408,6 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'flex-start',
         alignItems: 'center',
+        overflow: 'visible',
     },
 });
